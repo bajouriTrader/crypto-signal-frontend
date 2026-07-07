@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import SignalChart from './SignalChart'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -153,6 +154,8 @@ export default function App() {
   const [errorMsg, setErrorMsg] = useState('')
   const [models, setModels] = useState([])
   const [finalVerdict, setFinalVerdict] = useState(null)
+  const [aiSummary, setAiSummary] = useState('')
+  const [parsedSignal, setParsedSignal] = useState(null)
   const fileInputRef = useRef(null)
 
   const canAnalyze =
@@ -193,6 +196,8 @@ export default function App() {
       const data = await res.json()
       setModels(mapModelResults(data.model_results))
       setFinalVerdict(buildFinalVerdict(data.final_verdict))
+      setAiSummary(data.final_verdict?.ai_summary || '')
+      setParsedSignal(data.parsed_signal || null)
       setStatus('done')
     } catch (err) {
       setErrorMsg(
@@ -210,6 +215,8 @@ export default function App() {
     setImageFile(null)
     setModels([])
     setFinalVerdict(null)
+    setAiSummary('')
+    setParsedSignal(null)
     setErrorMsg('')
   }
 
@@ -316,7 +323,15 @@ export default function App() {
 
             <section className="final-section">
               <ConfluenceMeter models={models} final={finalVerdict} />
+              {aiSummary && (
+                <div className="ai-summary">
+                  <div className="ai-summary-title">جمع‌بندی تحلیلی</div>
+                  <p>{aiSummary}</p>
+                </div>
+              )}
             </section>
+
+            {parsedSignal && <SignalChart parsedSignal={parsedSignal} />}
           </>
         )}
       </main>
