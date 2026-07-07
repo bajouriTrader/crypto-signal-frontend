@@ -1,72 +1,73 @@
 import { useState, useRef } from 'react'
 
-// ---- Mock data (placeholder until backend from Phase 3 is wired in) ----
-const MOCK_MODELS = [
-  {
-    id: 'gpt',
-    name: 'GPT-4o',
-    provider: 'GitHub Models',
-    accent: '#2DD4A7',
-    verdict: 'ورود',
-    winRate: 68,
-    methods: [
-      { name: 'ICT', score: 71 },
-      { name: 'SMC', score: 65 },
-      { name: 'Liquidity Sweep', score: 74 },
-      { name: 'VWAP', score: 62 },
-    ],
-    note: 'واکنش قیمت به liquidity sweep زیر لو قبلی با تایید حجم همراه بوده.',
-  },
-  {
-    id: 'llama',
-    name: 'Llama 3.3 70B',
-    provider: 'Groq',
-    accent: '#E8A94A',
-    verdict: 'محتاطانه',
-    winRate: 54,
-    methods: [
-      { name: 'ICT', score: 58 },
-      { name: 'SMC', score: 49 },
-      { name: 'Liquidity Sweep', score: 60 },
-      { name: 'VWAP', score: 51 },
-    ],
-    note: 'ساختار روند اصلی هنوز نزولی است؛ سیگنال بیشتر ضدروند به‌نظر می‌رسد.',
-  },
-  {
-    id: 'gemini',
-    name: 'Gemini',
-    provider: 'Google AI Studio',
-    accent: '#2DD4A7',
-    verdict: 'ورود',
-    winRate: 71,
-    methods: [
-      { name: 'ICT', score: 76 },
-      { name: 'SMC', score: 70 },
-      { name: 'Liquidity Sweep', score: 78 },
-      { name: 'VWAP', score: 60 },
-    ],
-    note: 'همخوانی خوبی با الگوی Order Block و بازگشت از ناحیه تقاضا دارد.',
-  },
-  {
-    id: 'deepseek',
-    name: 'DeepSeek',
-    provider: 'DeepSeek Platform',
-    accent: '#FF5C72',
-    verdict: 'عدم ورود',
-    winRate: 39,
-    methods: [
-      { name: 'ICT', score: 41 },
-      { name: 'SMC', score: 35 },
-      { name: 'Liquidity Sweep', score: 44 },
-      { name: 'VWAP', score: 36 },
-    ],
-    note: 'نسبت ریسک به ریوارد با فاصله SL فعلی توجیه‌پذیر نیست.',
-  },
-]
+// آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
+const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
-const FINAL_VERDICT = {
-  decision: 'ورود با احتیاط',
-  winRate: 58,
+// اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
+// فنی مثل "github" یا "groq" برمی‌گردونه
+const PROVIDER_META = {
+  github: { name: 'GPT-4o', provider: 'GitHub Models', accent: '#2DD4A7' },
+  groq: { name: 'Llama 3.3 70B', provider: 'Groq', accent: '#E8A94A' },
+  gemini: { name: 'Gemini', provider: 'Google AI Studio', accent: '#2DD4A7' },
+  deepseek: { name: 'DeepSeek', provider: 'DeepSeek Platform', accent: '#FF5C72' },
+}
+
+const METHOD_LABELS = {
+  ict: 'ICT',
+  smc: 'SMC',
+  liquidity_sweep: 'Liquidity Sweep',
+  vwap: 'VWAP',
+}
+
+// تبدیل پاسخ خام بک‌اند به ساختاری که کامپوننت‌های نمایشی انتظار دارن
+function mapModelResults(modelResults) {
+  return Object.entries(PROVIDER_META).map(([key, meta]) => {
+    const methodsData = modelResults?.[key] || {}
+
+    const methods = Object.entries(METHOD_LABELS).map(([mKey, mLabel]) => {
+      const r = methodsData[mKey]
+      const hasScore = r && typeof r.quality_score === 'number'
+      return { name: mLabel, score: hasScore ? r.quality_score : null }
+    })
+
+    const validScores = methods
+      .map((m) => m.score)
+      .filter((s) => typeof s === 'number')
+
+    const winRate = validScores.length
+      ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+      : null
+
+    let verdict = 'داده ناقص'
+    if (winRate !== null) {
+      verdict = winRate >= 65 ? 'ورود' : winRate >= 45 ? 'محتاطانه' : 'عدم ورود'
+    }
+
+    const firstSuccess = Object.values(methodsData).find((r) => r?.reasoning)
+    const note = firstSuccess
+      ? firstSuccess.reasoning
+      : 'این مدل برای این سیگنال پاسخ معتبری برنگردوند (خطای موقت سرویس یا محدودیت سهمیه).'
+
+    return {
+      id: key,
+      name: meta.name,
+      provider: meta.provider,
+      accent: meta.accent,
+      verdict,
+      winRate: winRate ?? 0,
+      methods: methods.map((m) => ({ name: m.name, score: m.score ?? 0 })),
+      note,
+    }
+  })
+}
+
+function buildFinalVerdict(finalVerdictData) {
+  const score = finalVerdictData?.signal_quality_score
+  if (score === null || score === undefined) {
+    return { decision: 'داده کافی برای جمع‌بندی نیست', winRate: 0 }
+  }
+  const decision = score >= 65 ? 'ورود' : score >= 45 ? 'ورود با احتیاط' : 'عدم ورود'
+  return { decision, winRate: Math.round(score) }
 }
 
 function ConfluenceMeter({ models, final }) {
@@ -149,6 +150,9 @@ export default function App() {
   const [imageFile, setImageFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [status, setStatus] = useState('idle') // 'idle' | 'analyzing' | 'done'
+  const [errorMsg, setErrorMsg] = useState('')
+  const [models, setModels] = useState([])
+  const [finalVerdict, setFinalVerdict] = useState(null)
   const fileInputRef = useRef(null)
 
   const canAnalyze =
@@ -162,18 +166,51 @@ export default function App() {
     if (file) setImageFile(file)
   }
 
-  const handleAnalyze = () => {
+  const handleAnalyze = async () => {
     if (!canAnalyze) return
+
+    if (mode === 'image') {
+      setErrorMsg(
+        'آپلود تصویر فعلاً پشتیبانی نمی‌شه — لطفاً فعلاً متن سیگنال رو وارد کن.'
+      )
+      return
+    }
+
+    setErrorMsg('')
     setStatus('analyzing')
-    // Placeholder: Phase 3 will replace this with the real backend call
-    // (fan-out to 4 models x 4 methods, then the platform's synthesis).
-    setTimeout(() => setStatus('done'), 1400)
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal_text: signalText }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`خطای سرور (کد ${res.status})`)
+      }
+
+      const data = await res.json()
+      setModels(mapModelResults(data.model_results))
+      setFinalVerdict(buildFinalVerdict(data.final_verdict))
+      setStatus('done')
+    } catch (err) {
+      setErrorMsg(
+        'تحلیل سیگنال با خطا مواجه شد. لطفاً دوباره امتحان کن. (' +
+          err.message +
+          ')'
+      )
+      setStatus('idle')
+    }
   }
 
   const handleReset = () => {
     setStatus('idle')
     setSignalText('')
     setImageFile(null)
+    setModels([])
+    setFinalVerdict(null)
+    setErrorMsg('')
   }
 
   return (
@@ -257,7 +294,7 @@ export default function App() {
               disabled={!canAnalyze || status === 'analyzing'}
               onClick={handleAnalyze}
             >
-              {status === 'analyzing' ? 'در حال تحلیل…' : 'شروع تحلیل'}
+              {status === 'analyzing' ? 'در حال تحلیل… (تا ۳۰ ثانیه)' : 'شروع تحلیل'}
             </button>
             {status === 'done' && (
               <button className="btn-ghost" onClick={handleReset}>
@@ -265,24 +302,20 @@ export default function App() {
               </button>
             )}
           </div>
+
+          {errorMsg && <p className="error-note">{errorMsg}</p>}
         </section>
 
-        {status === 'done' && (
+        {status === 'done' && finalVerdict && (
           <>
-            <section className="results-note">
-              <span className="results-note-badge">داده نمایشی</span>
-              این نتایج فعلاً نمونه هستن — در فاز بعد به بک‌اند واقعی وصل
-              می‌شن.
-            </section>
-
             <section className="model-grid">
-              {MOCK_MODELS.map((m) => (
+              {models.map((m) => (
                 <ModelCard key={m.id} model={m} />
               ))}
             </section>
 
             <section className="final-section">
-              <ConfluenceMeter models={MOCK_MODELS} final={FINAL_VERDICT} />
+              <ConfluenceMeter models={models} final={finalVerdict} />
             </section>
           </>
         )}
