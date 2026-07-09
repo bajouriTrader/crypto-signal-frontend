@@ -42,83 +42,121 @@ function useCountdown(seconds) {
   return [remaining, start]
 }
 
-function BacktestPanel({ symbol, direction }) {
-  const [status, setStatus] = useState('idle') // 'idle' | 'loading' | 'done' | 'error'
-  const [result, setResult] = useState(null)
+function DemoTradePanel({ signal }) {
+  const [status, setStatus] = useState('idle') // 'idle' | 'starting' | 'open' | 'win' | 'loss' | 'error'
+  const [trade, setTrade] = useState(null)
   const [open, setOpen] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const pollRef = useRef(null)
   const elapsedTimerRef = useRef(null)
 
-  const runBacktest = async () => {
-    setOpen(true)
-    setStatus('loading')
-    setElapsed(0)
-    elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+  const stopTimers = () => {
+    clearInterval(pollRef.current)
+    clearInterval(elapsedTimerRef.current)
+  }
+
+  useEffect(() => () => stopTimers(), [])
+
+  const pollStatus = async (tradeId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/backtest`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol, direction, leverage: 5, capital: 100 }),
-      })
+      const res = await fetch(`${API_BASE_URL}/demo-trade/status/${tradeId}`)
       const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'خطا در بک‌تست')
-      setResult(data)
-      setStatus('done')
+      if (!res.ok) throw new Error('trade not found')
+      setTrade(data)
+      if (data.status !== 'open') {
+        setStatus(data.status)
+        stopTimers()
+      }
     } catch {
-      setStatus('error')
-    } finally {
-      clearInterval(elapsedTimerRef.current)
+      // موقتاً نادیده می‌گیریم، سیکل بعدی دوباره امتحان می‌کنه
     }
   }
 
-  useEffect(() => () => clearInterval(elapsedTimerRef.current), [])
+  const startDemo = async () => {
+    setOpen(true)
+    setStatus('starting')
+    setElapsed(0)
+    try {
+      const res = await fetch(`${API_BASE_URL}/demo-trade/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: signal.symbol,
+          direction: signal.direction,
+          entry: signal.entry,
+          target: signal.target,
+          stop_loss: signal.stop_loss,
+          leverage: signal.suggested_leverage,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error('شروع تست زنده ناموفق بود')
+      setTrade(data)
+      setStatus('open')
+
+      elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+      pollRef.current = setInterval(() => pollStatus(data.trade_id), 15000)
+    } catch {
+      setStatus('error')
+    }
+  }
+
+  const formatDuration = (sec) => {
+    const m = Math.floor(sec / 60)
+    const s = sec % 60
+    return m > 0 ? `${m} دقیقه و ${s} ثانیه` : `${s} ثانیه`
+  }
 
   return (
     <>
-      <button className="btn-mini" onClick={runBacktest} disabled={status === 'loading'}>
-        {status === 'loading' ? `در حال بک‌تست… ${elapsed}s` : 'ارسال به بک‌تست'}
+      <button className="btn-mini" onClick={startDemo} disabled={status === 'starting' || status === 'open'}>
+        {status === 'open'
+          ? `در حال رصد… ${elapsed}s`
+          : status === 'starting'
+          ? 'در حال شروع…'
+          : 'تست زنده سیگنال'}
       </button>
 
       {open && (
         <div className="backtest-panel">
-          {status === 'loading' && (
-            <div className="backtest-status">
-              در حال اجرای بک‌تست روی داده‌ی تاریخی واقعی… ({elapsed} ثانیه)
-            </div>
+          {status === 'starting' && (
+            <div className="backtest-status">در حال باز کردن پوزیشن دمو…</div>
           )}
           {status === 'error' && (
-            <div className="backtest-status">بک‌تست ناموفق بود، دوباره امتحان کن.</div>
+            <div className="backtest-status">شروع تست زنده ناموفق بود، دوباره امتحان کن.</div>
           )}
-          {status === 'done' && result && (
+          {status === 'open' && trade && (
+            <div className="backtest-status">
+              ⏳ پوزیشن دمو باز است — رصد زنده قیمت (هر ۱۵ ثانیه بروزرسانی می‌شه)
+              {trade.current_price && (
+                <div dir="ltr" className="demo-current-price">
+                  قیمت فعلی: {trade.current_price}
+                </div>
+              )}
+            </div>
+          )}
+          {(status === 'win' || status === 'loss') && trade && (
             <>
+              <div className={`demo-result-badge ${status === 'win' ? 'demo-win' : 'demo-loss'}`}>
+                {status === 'win' ? '✅ به هدف خورد' : '❌ به حد ضرر خورد'}
+              </div>
               <div className="backtest-grid">
                 <div>
-                  <span className="detail-label">سرمایه اولیه</span>
-                  <div dir="ltr" className="detail-value">${result.starting_capital}</div>
+                  <span className="detail-label">ورود</span>
+                  <div dir="ltr" className="detail-value">{trade.entry}</div>
                 </div>
                 <div>
-                  <span className="detail-label">سرمایه نهایی</span>
-                  <div dir="ltr" className="detail-value">${result.final_capital}</div>
+                  <span className="detail-label">خروج</span>
+                  <div dir="ltr" className="detail-value">{trade.exit_price}</div>
                 </div>
                 <div>
-                  <span className="detail-label">بازده</span>
-                  <div dir="ltr" className={`detail-value ${result.roi_percent >= 0 ? 'detail-target' : 'detail-stop'}`}>
-                    {result.roi_percent}%
-                  </div>
-                </div>
-                <div>
-                  <span className="detail-label">Win Rate</span>
-                  <div dir="ltr" className="detail-value">{result.win_rate}%</div>
-                </div>
-                <div>
-                  <span className="detail-label">تعداد معاملات</span>
-                  <div dir="ltr" className="detail-value">{result.total_trades}</div>
+                  <span className="detail-label">مدت زمان</span>
+                  <div className="detail-value">{formatDuration(elapsed)}</div>
                 </div>
               </div>
-              <p className="backtest-disclaimer">{result.disclaimer}</p>
             </>
           )}
-          <button className="btn-mini backtest-close" onClick={() => setOpen(false)}>
+          <button className="btn-mini backtest-close" onClick={() => { stopTimers(); setOpen(false) }}>
             بستن
           </button>
         </div>
@@ -228,7 +266,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
             ? 'در حال ارسال…'
             : 'ارسال به صرافی'}
         </button>
-        <BacktestPanel symbol={rowData.symbol} direction={rowData.direction} />
+        <DemoTradePanel signal={rowData} />
       </div>
     </div>
   )
