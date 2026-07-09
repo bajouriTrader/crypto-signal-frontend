@@ -158,6 +158,7 @@ export default function App() {
   const [aiSummary, setAiSummary] = useState('')
   const [parsedSignal, setParsedSignal] = useState(null)
   const fileInputRef = useRef(null)
+  const resultsRef = useRef(null)
 
   const canAnalyze =
     (mode === 'text' && signalText.trim().length > 0) ||
@@ -233,6 +234,9 @@ export default function App() {
       setAiSummary(data.final_verdict?.ai_summary || '')
       setParsedSignal(data.parsed_signal || null)
       setStatus('done')
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
     } catch (err) {
       setErrorMsg(
         'تحلیل خودکار با خطا مواجه شد. لطفاً دوباره امتحان کن. (' +
@@ -347,10 +351,34 @@ export default function App() {
           {errorMsg && <p className="error-note">{errorMsg}</p>}
         </section>
 
-        <AutoSignalList onFullAnalyze={handleAutoAnalyze} />
+        <AutoSignalList
+          onFullAnalyze={handleAutoAnalyze}
+          isAnalyzing={status === 'analyzing'}
+        />
+
+        {status === 'analyzing' && (
+          <div className="analyzing-banner">
+            ⏳ در حال تحلیل با ۴ هوش مصنوعی… (تا ۳۰ ثانیه طول می‌کشه)
+          </div>
+        )}
 
         {status === 'done' && finalVerdict && (
           <>
+            <div ref={resultsRef} />
+            {parsedSignal?.symbol && (
+              <div className="results-heading">
+                نتایج تحلیل برای:{' '}
+                <span className="results-heading-symbol">{parsedSignal.symbol}</span>
+                <span
+                  className={`results-heading-direction ${
+                    parsedSignal.direction === 'short' ? 'dir-short' : 'dir-long'
+                  }`}
+                >
+                  {parsedSignal.direction === 'short' ? 'شورت' : 'لانگ'}
+                </span>
+              </div>
+            )}
+
             <section className="model-grid">
               {models.map((m) => (
                 <ModelCard key={m.id} model={m} />
