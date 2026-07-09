@@ -747,3 +747,135 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.results-heading {
+  margin-top: 24px;
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+.results-heading-symbol {
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 6px;
+}
+
+.results-heading-direction {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 999px;
+}
+
+.results-heading-direction.dir-long {
+  background: rgba(45, 212, 167, 0.15);
+  color: var(--long);
+}
+
+.results-heading-direction.dir-short {
+  background: rgba(255, 92, 114, 0.15);
+  color: var(--short);
+}
+
+.analyzing-banner {
+  margin-top: 20px;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.watchlist-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.refresh-chip {
+  color: var(--long);
+  border-color: var(--long);
+}
+
+.refresh-chip:disabled {
+  color: var(--text-muted);
+  border-color: var(--line);
+  cursor: not-allowed;
+}
+
+.row-refresh-btn {
+  margin-right: auto;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.row-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.watchlist-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+.watchlist-actions .btn-mini {
+  flex: 1;
+  min-width: 90px;
+}
+
+.backtest-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--ink);
+  border: 1px solid var(--line);
+  flex-basis: 100%;
+}
+
+.backtest-status {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: center;
+  padding: 8px 0;
+}
+
+.backtest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.backtest-disclaimer {
+  margin: 10px 0 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.8;
+}
+
+.backtest-close {
+  margin-top: 10px;
+  width: 100%;
+}
+
+@media (max-width: 520px) {
+  .watchlist-details {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .backtest-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
