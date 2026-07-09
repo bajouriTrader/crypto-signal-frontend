@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import SignalChart from './SignalChart'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -108,6 +108,18 @@ function DemoTradePanel({ signal }) {
     return m > 0 ? `${m} دقیقه و ${s} ثانیه` : `${s} ثانیه`
   }
 
+  // فقط وقتی مقادیر واقعی معامله عوض بشه بازسازی می‌شه، نه هر ثانیه با تیک شمارنده
+  const chartSignal = useMemo(() => {
+    if (!trade) return null
+    return {
+      symbol: trade.symbol,
+      direction: trade.direction,
+      entries: [trade.entry],
+      targets: [trade.target],
+      stop_loss: trade.stop_loss,
+    }
+  }, [trade?.symbol, trade?.direction, trade?.entry, trade?.target, trade?.stop_loss])
+
   return (
     <>
       <button className="btn-mini" onClick={startDemo} disabled={status === 'starting' || status === 'open'}>
@@ -138,15 +150,7 @@ function DemoTradePanel({ signal }) {
           )}
 
           {trade && (status === 'open' || status === 'win' || status === 'loss') && (
-            <SignalChart
-              parsedSignal={{
-                symbol: trade.symbol,
-                direction: trade.direction,
-                entries: [trade.entry],
-                targets: [trade.target],
-                stop_loss: trade.stop_loss,
-              }}
-            />
+            <SignalChart parsedSignal={chartSignal} />
           )}
           {(status === 'win' || status === 'loss') && trade && (
             <>
