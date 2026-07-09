@@ -879,3 +879,28 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+.demo-current-price {
+  margin-top: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.demo-result-badge {
+  text-align: center;
+  padding: 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.demo-result-badge.demo-win {
+  background: rgba(45, 212, 167, 0.15);
+  color: var(--long);
+}
+
+.demo-result-badge.demo-loss {
+  background: rgba(255, 92, 114, 0.15);
+  color: var(--short);
+}
