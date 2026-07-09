@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import SignalChart from './SignalChart'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 const GLOBAL_REFRESH_COOLDOWN = 30
@@ -134,6 +135,18 @@ function DemoTradePanel({ signal }) {
                 </div>
               )}
             </div>
+          )}
+
+          {trade && (status === 'open' || status === 'win' || status === 'loss') && (
+            <SignalChart
+              parsedSignal={{
+                symbol: trade.symbol,
+                direction: trade.direction,
+                entries: [trade.entry],
+                targets: [trade.target],
+                stop_loss: trade.stop_loss,
+              }}
+            />
           )}
           {(status === 'win' || status === 'loss') && trade && (
             <>
