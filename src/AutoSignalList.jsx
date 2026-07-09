@@ -150,7 +150,7 @@ function DemoTradePanel({ signal }) {
           )}
 
           {trade && (status === 'open' || status === 'win' || status === 'loss') && (
-            <SignalChart parsedSignal={chartSignal} />
+            <SignalChart parsedSignal={chartSignal} days={1} />
           )}
           {(status === 'win' || status === 'loss') && trade && (
             <>
