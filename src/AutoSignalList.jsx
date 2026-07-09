@@ -46,10 +46,14 @@ function BacktestPanel({ symbol, direction }) {
   const [status, setStatus] = useState('idle') // 'idle' | 'loading' | 'done' | 'error'
   const [result, setResult] = useState(null)
   const [open, setOpen] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  const elapsedTimerRef = useRef(null)
 
   const runBacktest = async () => {
     setOpen(true)
     setStatus('loading')
+    setElapsed(0)
+    elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
     try {
       const res = await fetch(`${API_BASE_URL}/backtest`, {
         method: 'POST',
@@ -62,19 +66,25 @@ function BacktestPanel({ symbol, direction }) {
       setStatus('done')
     } catch {
       setStatus('error')
+    } finally {
+      clearInterval(elapsedTimerRef.current)
     }
   }
+
+  useEffect(() => () => clearInterval(elapsedTimerRef.current), [])
 
   return (
     <>
       <button className="btn-mini" onClick={runBacktest} disabled={status === 'loading'}>
-        {status === 'loading' ? 'در حال بک‌تست…' : 'ارسال به بک‌تست'}
+        {status === 'loading' ? `در حال بک‌تست… ${elapsed}s` : 'ارسال به بک‌تست'}
       </button>
 
       {open && (
         <div className="backtest-panel">
           {status === 'loading' && (
-            <div className="backtest-status">در حال اجرای بک‌تست روی داده‌ی تاریخی…</div>
+            <div className="backtest-status">
+              در حال اجرای بک‌تست روی داده‌ی تاریخی واقعی… ({elapsed} ثانیه)
+            </div>
           )}
           {status === 'error' && (
             <div className="backtest-status">بک‌تست ناموفق بود، دوباره امتحان کن.</div>
@@ -297,7 +307,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
               disabled={globalRefreshing || globalRemaining > 0}
               onClick={handleGlobalRefresh}
             >
-              {globalRefreshing ? 'در حال رفرش…' : globalRemaining > 0 ? `رفرش (${globalRemaining}s)` : '↻ رفرش'}
+              {globalRefreshing ? 'Refreshing…' : globalRemaining > 0 ? `Refresh (${globalRemaining}s)` : '↻ Refresh'}
             </button>
           </div>
         </div>
