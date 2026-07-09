@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import SignalChart from './SignalChart'
+import AutoSignalList from './AutoSignalList'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -209,6 +210,39 @@ export default function App() {
     }
   }
 
+  const handleAutoAnalyze = async (symbol) => {
+    setErrorMsg('')
+    setStatus('analyzing')
+    setMode('text')
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/auto-signal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`خطای سرور (کد ${res.status})`)
+      }
+
+      const data = await res.json()
+      setSignalText(data.signal_text || '')
+      setModels(mapModelResults(data.model_results))
+      setFinalVerdict(buildFinalVerdict(data.final_verdict))
+      setAiSummary(data.final_verdict?.ai_summary || '')
+      setParsedSignal(data.parsed_signal || null)
+      setStatus('done')
+    } catch (err) {
+      setErrorMsg(
+        'تحلیل خودکار با خطا مواجه شد. لطفاً دوباره امتحان کن. (' +
+          err.message +
+          ')'
+      )
+      setStatus('idle')
+    }
+  }
+
   const handleReset = () => {
     setStatus('idle')
     setSignalText('')
@@ -312,6 +346,8 @@ export default function App() {
 
           {errorMsg && <p className="error-note">{errorMsg}</p>}
         </section>
+
+        <AutoSignalList onFullAnalyze={handleAutoAnalyze} />
 
         {status === 'done' && finalVerdict && (
           <>
