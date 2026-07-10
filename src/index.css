@@ -1126,6 +1126,25 @@ body {
   text-align: center;
 }
 
+.demo-config-input-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.demo-config-input-wrap .demo-config-input {
+  padding-right: 22px;
+  padding-left: 10px;
+}
+
+.demo-config-suffix {
+  position: absolute;
+  right: 10px;
+  font-size: 12px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
 .demo-manual-close {
   margin-top: 10px;
   width: 100%;
