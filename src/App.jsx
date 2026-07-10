@@ -1,3 +1,4 @@
+import { authFetch } from './auth'
 import { useState, useRef } from 'react'
 import SignalChart from './SignalChart'
 import AutoSignalList from './AutoSignalList'
@@ -185,7 +186,7 @@ export default function App() {
     setStatus('analyzing')
 
     try {
-      const res = await fetch(`${API_BASE_URL}/analyze`, {
+      const res = await authFetch(`${API_BASE_URL}/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ signal_text: signalText }),
@@ -217,7 +218,7 @@ export default function App() {
     setMode('text')
 
     try {
-      const res = await fetch(`${API_BASE_URL}/auto-signal`, {
+      const res = await authFetch(`${API_BASE_URL}/auto-signal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol }),
