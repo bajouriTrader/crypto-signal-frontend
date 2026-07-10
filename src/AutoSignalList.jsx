@@ -107,6 +107,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
           target: signal.target,
           stop_loss: signal.stop_loss,
           leverage: signal.suggested_leverage,
+          mode: signal.mode || 'strict',
         }),
       })
       const data = await res.json()
@@ -192,6 +193,10 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               </div>
               <div className="backtest-grid">
                 <div>
+                  <span className="detail-label">حالت</span>
+                  <div className="detail-value">{trade.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</div>
+                </div>
+                <div>
                   <span className="detail-label">ورود</span>
                   <div dir="ltr" className="detail-value">{trade.entry}</div>
                 </div>
@@ -215,11 +220,12 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
   )
 }
 
-function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
+function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const [remaining, startCooldown] = useCountdown(ROW_REFRESH_COOLDOWN)
   const [refreshing, setRefreshing] = useState(false)
   const [rowData, setRowData] = useState(signal)
-  const [exchangeStatus, setExchangeStatus] = useState(null)
+  const [demoExchangeStatus, setDemoExchangeStatus] = useState(null)
+  const [liveExchangeStatus, setLiveExchangeStatus] = useState(null)
 
   useEffect(() => setRowData(signal), [signal])
 
@@ -229,7 +235,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
       const res = await fetch(`${API_BASE_URL}/refresh-signal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: rowData.symbol }),
+        body: JSON.stringify({ symbol: rowData.symbol, mode }),
       })
       const data = await res.json()
       if (res.ok) {
@@ -243,20 +249,21 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
     }
   }
 
-  const handleSendToExchange = async () => {
-    setExchangeStatus('sending')
+  const handleSendToExchange = async (target) => {
+    const setter = target === 'live' ? setLiveExchangeStatus : setDemoExchangeStatus
+    setter('sending')
     try {
-      const res = await fetch(`${API_BASE_URL}/send-to-exchange`, {
+      const res = await fetch(`${API_BASE_URL}/send-to-exchange-${target}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: rowData.symbol }),
       })
       const data = await res.json()
-      setExchangeStatus(data.status === 'coming_soon' ? 'soon' : 'sent')
+      setter(data.status === 'coming_soon' ? 'soon' : 'sent')
     } catch {
-      setExchangeStatus('error')
+      setter('error')
     } finally {
-      setTimeout(() => setExchangeStatus(null), 4000)
+      setTimeout(() => setter(null), 4000)
     }
   }
 
@@ -330,14 +337,25 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
         </button>
         <button
           className="btn-mini"
-          disabled={exchangeStatus === 'sending' || !hasSignal}
-          onClick={handleSendToExchange}
+          disabled={demoExchangeStatus === 'sending' || !hasSignal}
+          onClick={() => handleSendToExchange('demo')}
         >
-          {exchangeStatus === 'soon'
+          {demoExchangeStatus === 'soon'
             ? 'به‌زودی 🚧'
-            : exchangeStatus === 'sending'
+            : demoExchangeStatus === 'sending'
             ? 'در حال ارسال…'
-            : 'ارسال به صرافی'}
+            : 'ارسال به صرافی (دمو تست)'}
+        </button>
+        <button
+          className="btn-mini"
+          disabled={liveExchangeStatus === 'sending' || !hasSignal}
+          onClick={() => handleSendToExchange('live')}
+        >
+          {liveExchangeStatus === 'soon'
+            ? 'به‌زودی 🚧'
+            : liveExchangeStatus === 'sending'
+            ? 'در حال ارسال…'
+            : 'ارسال به صرافی (لایو واقعی)'}
         </button>
         {hasSignal && <DemoTradePanel signal={rowData} initialOpenTrade={rowData.open_trade} />}
       </div>
@@ -350,12 +368,13 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [status, setStatus] = useState('loading')
   const [isPartial, setIsPartial] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [mode, setMode] = useState('strict') // 'strict' | 'relaxed'
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
 
-  const loadList = async () => {
+  const loadList = async (activeMode) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/watchlist-signals?limit=20`)
+      const res = await fetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=${activeMode}`)
       if (!res.ok) throw new Error('خطا در دریافت لیست')
       const data = await res.json()
       setSignals(data.signals || [])
@@ -373,7 +392,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
     let pollTimer = null
 
     async function initialLoad() {
-      const data = await loadList()
+      const data = await loadList(mode)
       if (!cancelled && data && (data.count || 0) < (data.total_watchlist_size || 20)) {
         pollTimer = setTimeout(initialLoad, 15000)
       }
@@ -385,11 +404,11 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
       cancelled = true
       if (pollTimer) clearTimeout(pollTimer)
     }
-  }, [])
+  }, [mode])
 
   const handleGlobalRefresh = async () => {
     setGlobalRefreshing(true)
-    await loadList()
+    await loadList(mode)
     setGlobalRefreshing(false)
     startGlobalCooldown()
   }
@@ -398,6 +417,27 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
   return (
     <section className="watchlist-panel">
+      <div className="mode-toggle">
+        <label className={`mode-option ${mode === 'strict' ? 'mode-option-active' : ''}`}>
+          <input
+            type="radio"
+            name="signal-mode"
+            checked={mode === 'strict'}
+            onChange={() => setMode('strict')}
+          />
+          سخت‌گیر (دقت بالاتر، سیگنال کمتر)
+        </label>
+        <label className={`mode-option ${mode === 'relaxed' ? 'mode-option-active' : ''}`}>
+          <input
+            type="radio"
+            name="signal-mode"
+            checked={mode === 'relaxed'}
+            onChange={() => setMode('relaxed')}
+          />
+          ساده‌گیر (سیگنال بیشتر، دقت پایین‌تر)
+        </label>
+      </div>
+
       <div className="watchlist-head">
         <div className="watchlist-head-top">
           <h2 className="watchlist-title">سیگنال‌های خودکار پلتفرم</h2>
@@ -443,6 +483,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
               index={index}
               onFullAnalyze={onFullAnalyze}
               isAnalyzing={isAnalyzing}
+              mode={mode}
             />
           ))}
         </div>
