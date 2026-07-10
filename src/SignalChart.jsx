@@ -1,58 +1,20 @@
 import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType } from 'lightweight-charts'
 
-// نگاشت چند تیکر پرکاربرد به شناسه‌ی کوین‌گکو (برای بقیه، از سرچ استفاده می‌کنیم)
-const KNOWN_IDS = {
-  BTC: 'bitcoin',
-  ETH: 'ethereum',
-  SOL: 'solana',
-  XLM: 'stellar',
-  BNB: 'binancecoin',
-  XRP: 'ripple',
-  DOGE: 'dogecoin',
-  ADA: 'cardano',
-  AVAX: 'avalanche-2',
-  LINK: 'chainlink',
-  DOT: 'polkadot',
-  MATIC: 'matic-network',
-  TON: 'the-open-network',
-  TRX: 'tron',
-  LTC: 'litecoin',
-}
+const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
+const REFRESH_INTERVAL_MS = 60 * 1000 // هر ۶۰ ثانیه داده‌ی چارت بروز می‌شه
+const LIVE_PRICE_INTERVAL_MS = 15 * 1000 // هر ۱۵ ثانیه قیمت لحظه‌ای بروز می‌شه
 
-const REFRESH_INTERVAL_MS = 90 * 1000 // هر ۹۰ ثانیه داده‌ی چارت بروز می‌شه (نه چیزی تندتر، برای رعایت rate limit)
-
-async function resolveCoinId(symbol) {
-  const clean = symbol.toUpperCase().replace('USDT', '').trim()
-  if (KNOWN_IDS[clean]) return KNOWN_IDS[clean]
-  try {
-    const res = await fetch(
-      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(clean)}`
-    )
-    const data = await res.json()
-    return data?.coins?.[0]?.id ?? null
-  } catch {
-    return null
-  }
-}
-
-async function fetchCandles(coinId, days) {
+async function fetchCandles(symbol, interval) {
   const res = await fetch(
-    `https://api.coingecko.com/api/v3/coins/${coinId}/ohlc?vs_currency=usd&days=${days}`
+    `${API_BASE_URL}/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=150`
   )
   if (!res.ok) throw new Error('دریافت داده قیمت ناموفق بود')
-  const raw = await res.json()
-  return raw.map(([time, open, high, low, close]) => ({
-    time: Math.floor(time / 1000),
-    open,
-    high,
-    low,
-    close,
-  }))
+  const data = await res.json()
+  return data.candles || []
 }
 
-// دقت اعشار مناسب رو بر اساس بزرگی قیمت تعیین می‌کنه (مثلاً برای DOGE با قیمت
-// ۰.۰۷ باید ۶ رقم اعشار نشون بدیم، نه فقط ۲ تا که همه چیز "0.07" دیده بشه)
+// دقت اعشار مناسب رو بر اساس بزرگی قیمت تعیین می‌کنه
 function pricePrecision(referencePrice) {
   const p = Math.abs(referencePrice || 0)
   if (p >= 100) return 2
@@ -61,20 +23,23 @@ function pricePrecision(referencePrice) {
   return 8
 }
 
-// برچسب تایم‌فریم بر اساس بازه‌ی روزی که از کوین‌گکو خواستیم (طبق گرانولاریت
-// مستند API: ۱-۲ روز → ۳۰ دقیقه، ۳-۹۰ روز → ۴ ساعت، بیشتر از ۹۰ → روزانه)
-function timeframeLabel(days) {
-  if (days <= 2) return 'کندل ۳۰ دقیقه‌ای'
-  if (days <= 90) return 'کندل ۴ ساعته'
-  return 'کندل روزانه'
+const TIMEFRAME_LABELS = {
+  '5m': 'کندل ۵ دقیقه‌ای',
+  '15m': 'کندل ۱۵ دقیقه‌ای',
+  '30m': 'کندل ۳۰ دقیقه‌ای',
+  '1h': 'کندل ۱ ساعته',
+  '4h': 'کندل ۴ ساعته',
+  '1d': 'کندل روزانه',
 }
 
-export default function SignalChart({ parsedSignal, days = 7 }) {
+export default function SignalChart({ parsedSignal, interval = '15m' }) {
   const containerRef = useRef(null)
   const chartRef = useRef(null)
   const seriesRef = useRef(null)
+  const livePriceLineRef = useRef(null)
   const [status, setStatus] = useState('loading') // 'loading' | 'ready' | 'error'
   const [errorMsg, setErrorMsg] = useState('')
+  const [livePrice, setLivePrice] = useState(null)
 
   useEffect(() => {
     if (!parsedSignal?.symbol) {
@@ -85,11 +50,39 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
 
     let disposed = false
     let refreshTimer = null
+    let liveTimer = null
 
-    async function loadAndRender(coinId, isFirstLoad) {
+    async function updateLivePrice(symbol) {
+      try {
+        const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (disposed || typeof data.price !== 'number') return
+
+        setLivePrice(data.price)
+
+        if (seriesRef.current) {
+          if (livePriceLineRef.current) {
+            livePriceLineRef.current.applyOptions({ price: data.price })
+          } else {
+            livePriceLineRef.current = seriesRef.current.createPriceLine({
+              price: data.price,
+              color: '#e8a94a',
+              lineWidth: 1,
+              lineStyle: 3,
+              title: 'قیمت لحظه‌ای',
+            })
+          }
+        }
+      } catch {
+        // خطای موقت شبکه رو نادیده می‌گیریم
+      }
+    }
+
+    async function loadAndRender(isFirstLoad) {
       let candles
       try {
-        candles = await fetchCandles(coinId, days)
+        candles = await fetchCandles(parsedSignal.symbol, interval)
       } catch {
         if (!disposed && isFirstLoad) {
           setStatus('error')
@@ -98,10 +91,15 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
         return
       }
 
-      if (disposed || candles.length === 0) return
+      if (disposed || candles.length === 0) {
+        if (!disposed && isFirstLoad) {
+          setStatus('error')
+          setErrorMsg('داده‌ی قیمتی برای این ارز پیدا نشد.')
+        }
+        return
+      }
 
       if (seriesRef.current) {
-        // فقط داده‌ی کندل‌ها رو بروز می‌کنیم، بدون بازسازی کل چارت (جلوگیری از پرش/فلیکر)
         seriesRef.current.setData(candles)
         return
       }
@@ -109,8 +107,7 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
       if (!containerRef.current) return
       containerRef.current.innerHTML = ''
 
-      const referencePrice =
-        parsedSignal.entries?.[0] ?? candles[candles.length - 1].close
+      const referencePrice = parsedSignal.entries?.[0] ?? candles[candles.length - 1].close
       const precision = pricePrecision(referencePrice)
 
       const chart = createChart(containerRef.current, {
@@ -133,11 +130,7 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
         borderVisible: false,
         wickUpColor: '#2dd4a7',
         wickDownColor: '#ff5c72',
-        priceFormat: {
-          type: 'price',
-          precision,
-          minMove: 1 / 10 ** precision,
-        },
+        priceFormat: { type: 'price', precision, minMove: 1 / 10 ** precision },
       })
       series.setData(candles)
       chartRef.current = chart
@@ -147,31 +140,13 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
       const lineColor = isLong ? '#2dd4a7' : '#ff5c72'
 
       ;(parsedSignal.entries || []).forEach((price, i) => {
-        series.createPriceLine({
-          price,
-          color: lineColor,
-          lineWidth: 1,
-          lineStyle: 0,
-          title: `ورود ${i + 1}`,
-        })
+        series.createPriceLine({ price, color: lineColor, lineWidth: 1, lineStyle: 0, title: `ورود ${i + 1}` })
       })
       ;(parsedSignal.targets || []).forEach((price, i) => {
-        series.createPriceLine({
-          price,
-          color: '#2dd4a7',
-          lineWidth: 1,
-          lineStyle: 2,
-          title: `هدف ${i + 1}`,
-        })
+        series.createPriceLine({ price, color: '#2dd4a7', lineWidth: 1, lineStyle: 2, title: `هدف ${i + 1}` })
       })
       if (parsedSignal.stop_loss) {
-        series.createPriceLine({
-          price: parsedSignal.stop_loss,
-          color: '#ff5c72',
-          lineWidth: 1,
-          lineStyle: 2,
-          title: 'حد ضرر',
-        })
+        series.createPriceLine({ price: parsedSignal.stop_loss, color: '#ff5c72', lineWidth: 1, lineStyle: 2, title: 'حد ضرر' })
       }
 
       chart.timeScale().fitContent()
@@ -180,17 +155,10 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
 
     async function init() {
       setStatus('loading')
-      const coinId = await resolveCoinId(parsedSignal.symbol)
-      if (!coinId) {
-        if (!disposed) {
-          setStatus('error')
-          setErrorMsg(`ارز «${parsedSignal.symbol}» در کوین‌گکو پیدا نشد.`)
-        }
-        return
-      }
-
-      await loadAndRender(coinId, true)
-      refreshTimer = setInterval(() => loadAndRender(coinId, false), REFRESH_INTERVAL_MS)
+      await loadAndRender(true)
+      refreshTimer = setInterval(() => loadAndRender(false), REFRESH_INTERVAL_MS)
+      await updateLivePrice(parsedSignal.symbol)
+      liveTimer = setInterval(() => updateLivePrice(parsedSignal.symbol), LIVE_PRICE_INTERVAL_MS)
     }
 
     init()
@@ -198,11 +166,13 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
     return () => {
       disposed = true
       clearInterval(refreshTimer)
+      clearInterval(liveTimer)
       if (chartRef.current) chartRef.current.remove()
       chartRef.current = null
       seriesRef.current = null
+      livePriceLineRef.current = null
     }
-  }, [parsedSignal, days])
+  }, [parsedSignal, interval])
 
   return (
     <div className="chart-panel">
@@ -211,17 +181,20 @@ export default function SignalChart({ parsedSignal, days = 7 }) {
           نمودار {parsedSignal?.symbol || '—'} ·{' '}
           {parsedSignal?.direction === 'short' ? 'شورت' : 'لانگ'} ·{' '}
           {parsedSignal?.leverage ? `اهرم ${parsedSignal.leverage}x` : 'اهرم نامشخص'} ·{' '}
-          {timeframeLabel(days)}
+          {TIMEFRAME_LABELS[interval] || interval}
         </span>
+        {livePrice !== null && (
+          <span dir="ltr" className="chart-live-price">
+            🟡 {livePrice}
+          </span>
+        )}
       </div>
-      {status === 'loading' && (
-        <div className="chart-status">در حال دریافت داده‌ی قیمت…</div>
-      )}
+      {status === 'loading' && <div className="chart-status">در حال دریافت داده‌ی قیمت…</div>}
       {status === 'error' && <div className="chart-status">{errorMsg}</div>}
       <div ref={containerRef} className="chart-container" />
       <p className="chart-disclaimer">
-        این نمودار از داده‌ی عمومی CoinGecko ساخته شده (هر ۹۰ ثانیه بروز می‌شه)
-        و صرفاً برای نمایش تقریبی نقاط سیگنال است؛ برای معامله‌ی واقعی از نمودار
+        این نمودار از داده‌ی عمومی صرافی توبیت ساخته شده و برای نمایش دقیق نقاط
+        سیگنال با تایم‌فریم واقعی معاملاتیه؛ برای اجرای واقعی معامله، از اپ/سایت
         صرافی خودت استفاده کن.
       </p>
     </div>
