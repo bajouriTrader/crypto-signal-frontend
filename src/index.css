@@ -1049,3 +1049,30 @@ body {
   margin: 20px 0 8px;
   color: var(--text-muted);
 }
+
+.mode-toggle {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mode-option {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.mode-option input {
+  accent-color: var(--long);
+}
+
+.mode-option-active {
+  color: var(--text);
+  font-weight: 600;
+}
