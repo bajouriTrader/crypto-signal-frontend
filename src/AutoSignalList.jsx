@@ -69,19 +69,26 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
 
   // تایمر سبک و سریع (هر ۸ ثانیه) فقط برای قیمت لحظه‌ای — جدا از poll سنگین‌تر
   // وضعیت (که هر ۱۵ ثانیه‌ست و کندل چک می‌کنه)، تا سود/زیان واقعاً «زنده»‌تر باشه
-  const startLivePriceTicker = (symbol) => {
-    const tick = async () => {
-      try {
-        const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
-        if (!res.ok) return
+  const [priceRefreshing, setPriceRefreshing] = useState(false)
+
+  const fetchLivePriceNow = async (symbol, showSpinner = false) => {
+    if (showSpinner) setPriceRefreshing(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
+      if (res.ok) {
         const data = await res.json()
         if (typeof data.price === 'number') setLivePrice(data.price)
-      } catch {
-        // خطای موقت رو نادیده می‌گیریم، تیک بعدی دوباره امتحان می‌کنه
       }
+    } catch {
+      // خطای موقت رو نادیده می‌گیریم
+    } finally {
+      if (showSpinner) setPriceRefreshing(false)
     }
-    tick()
-    livePriceTimerRef.current = setInterval(tick, 8000)
+  }
+
+  const startLivePriceTicker = (symbol) => {
+    fetchLivePriceNow(symbol)
+    livePriceTimerRef.current = setInterval(() => fetchLivePriceNow(symbol), 8000)
   }
 
   // بازیابی خودکار: اگه از بک‌اند معلوم شد این ارز از قبل پوزیشن باز داره،
@@ -91,15 +98,18 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
       setTrade(initialOpenTrade)
       setStatus(initialOpenTrade.status)
       setOpen(true)
-      startElapsedFrom(initialOpenTrade.opened_at)
       if (initialOpenTrade.status === 'open') {
+        startElapsedFrom(initialOpenTrade.opened_at)
         pollRef.current = setInterval(() => pollStatus(initialOpenTrade.trade_id), 15000)
         startLivePriceTicker(initialOpenTrade.symbol)
+      } else if (initialOpenTrade.closed_at) {
+        // نتیجه‌ی تازه‌بسته‌شده — دیگه نیازی به تایمر زنده نیست، فقط مدت‌زمان نهایی رو نشون بده
+        setElapsed(Math.max(0, Math.floor(initialOpenTrade.closed_at - initialOpenTrade.opened_at)))
       }
     }
     return () => stopTimers()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOpenTrade])
+  }, [initialOpenTrade?.trade_id, initialOpenTrade?.status])
 
   const pollStatus = async (tradeId) => {
     try {
@@ -229,6 +239,14 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               >
                 سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
                 {unrealizedPnl.toFixed(4)}$
+                <button
+                  className="pnl-refresh-btn"
+                  onClick={() => fetchLivePriceNow(trade.symbol, true)}
+                  disabled={priceRefreshing}
+                  title="رفرش دستی قیمت و سود/زیان"
+                >
+                  {priceRefreshing ? '…' : '↻'}
+                </button>
               </div>
             </>
           )
