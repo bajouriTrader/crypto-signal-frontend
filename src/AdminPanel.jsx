@@ -1,3 +1,4 @@
+import { authFetch } from './auth'
 import { useEffect, useState } from 'react'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -224,9 +225,9 @@ export default function AdminPanel() {
     setStatus('loading')
     try {
       const [analysesRes, demoRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/history?limit=30`),
-        fetch(`${API_BASE_URL}/demo-trade/history?limit=50`),
-        fetch(`${API_BASE_URL}/demo-trade/stats`),
+        authFetch(`${API_BASE_URL}/history?limit=30`),
+        authFetch(`${API_BASE_URL}/demo-trade/history?limit=50`),
+        authFetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
       const demoData = await demoRes.json()
