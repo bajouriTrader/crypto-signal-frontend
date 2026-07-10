@@ -37,6 +37,15 @@ function AnalysesTable({ rows }) {
   )
 }
 
+function statusLabel(status) {
+  if (status === 'open') return '⏳ باز'
+  if (status === 'win') return '✅ برد'
+  if (status === 'loss') return '❌ باخت'
+  if (status === 'timeout_win') return '✅ برد (پایان بازه)'
+  if (status === 'timeout_loss') return '❌ باخت (پایان بازه)'
+  return status
+}
+
 function DemoTradesTable({ rows }) {
   return (
     <div className="admin-table-wrap">
@@ -62,9 +71,7 @@ function DemoTradesTable({ rows }) {
               <td dir="ltr">{r.entry}</td>
               <td dir="ltr">{r.target}</td>
               <td dir="ltr">{r.stop_loss}</td>
-              <td>
-                {r.status === 'open' ? 'باز' : r.status === 'win' ? '✅ برد' : '❌ باخت'}
-              </td>
+              <td>{statusLabel(r.status)}</td>
               <td dir="ltr">{r.exit_price ?? '—'}</td>
             </tr>
           ))}
@@ -74,14 +81,98 @@ function DemoTradesTable({ rows }) {
   )
 }
 
+function StatsPanel({ stats }) {
+  if (!stats) return null
+
+  return (
+    <div>
+      <div className="stats-summary-grid">
+        <div className="stats-card">
+          <span className="stats-card-label">Win Rate کلی</span>
+          <span className="stats-card-value" dir="ltr">
+            {stats.win_rate !== null ? `${stats.win_rate}%` : '—'}
+          </span>
+        </div>
+        <div className="stats-card">
+          <span className="stats-card-label">معاملات بسته‌شده</span>
+          <span className="stats-card-value" dir="ltr">{stats.total_resolved}</span>
+        </div>
+        <div className="stats-card">
+          <span className="stats-card-label">برد / باخت</span>
+          <span className="stats-card-value" dir="ltr">
+            {stats.wins} / {stats.losses}
+          </span>
+        </div>
+        <div className="stats-card">
+          <span className="stats-card-label">هنوز باز</span>
+          <span className="stats-card-value" dir="ltr">{stats.total_open}</span>
+        </div>
+        <div className="stats-card">
+          <span className="stats-card-label">بسته‌شده با Timeout</span>
+          <span className="stats-card-value" dir="ltr">{stats.timeouts}</span>
+        </div>
+      </div>
+
+      <h3 className="stats-section-title">تفکیک بر اساس جهت</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>جهت</th>
+              <th>تعداد</th>
+              <th>برد</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(stats.by_direction || {}).map(([dir, v]) => (
+              <tr key={dir}>
+                <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
+                <td dir="ltr">{v.total}</td>
+                <td dir="ltr">{v.wins}</td>
+                <td dir="ltr">{v.win_rate !== null ? `${v.win_rate}%` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <h3 className="stats-section-title">تفکیک بر اساس ارز</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>ارز</th>
+              <th>تعداد</th>
+              <th>برد</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(stats.by_symbol || []).map((s) => (
+              <tr key={s.symbol}>
+                <td>{s.symbol}</td>
+                <td dir="ltr">{s.total}</td>
+                <td dir="ltr">{s.wins}</td>
+                <td dir="ltr">{s.win_rate !== null ? `${s.win_rate}%` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPanel() {
   const [unlocked, setUnlocked] = useState(
     sessionStorage.getItem('admin_unlocked') === '1'
   )
   const [passInput, setPassInput] = useState('')
-  const [tab, setTab] = useState('analyses') // 'analyses' | 'demo'
+  const [tab, setTab] = useState('stats') // 'stats' | 'analyses' | 'demo'
   const [analyses, setAnalyses] = useState([])
   const [demoTrades, setDemoTrades] = useState([])
+  const [stats, setStats] = useState(null)
   const [status, setStatus] = useState('idle')
 
   const tryUnlock = () => {
@@ -96,14 +187,17 @@ export default function AdminPanel() {
   const loadData = async () => {
     setStatus('loading')
     try {
-      const [analysesRes, demoRes] = await Promise.all([
+      const [analysesRes, demoRes, statsRes] = await Promise.all([
         fetch(`${API_BASE_URL}/history?limit=30`),
-        fetch(`${API_BASE_URL}/demo-trade/history?limit=30`),
+        fetch(`${API_BASE_URL}/demo-trade/history?limit=50`),
+        fetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
       const demoData = await demoRes.json()
+      const statsData = await statsRes.json()
       setAnalyses(analysesData.analyses || [])
       setDemoTrades(demoData.trades || [])
+      setStats(statsData)
       setStatus('ready')
     } catch {
       setStatus('error')
@@ -151,6 +245,9 @@ export default function AdminPanel() {
       </div>
 
       <div className="tabs">
+        <button className={`tab ${tab === 'stats' ? 'tab-active' : ''}`} onClick={() => setTab('stats')}>
+          آمار Win Rate
+        </button>
         <button className={`tab ${tab === 'analyses' ? 'tab-active' : ''}`} onClick={() => setTab('analyses')}>
           سوابق تحلیل‌ها ({analyses.length})
         </button>
@@ -162,6 +259,7 @@ export default function AdminPanel() {
       {status === 'loading' && <div className="watchlist-status">در حال بارگذاری…</div>}
       {status === 'error' && <div className="watchlist-status">خطا در دریافت اطلاعات</div>}
 
+      {status === 'ready' && tab === 'stats' && <StatsPanel stats={stats} />}
       {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
       {status === 'ready' && tab === 'demo' && <DemoTradesTable rows={demoTrades} />}
     </div>
