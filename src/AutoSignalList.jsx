@@ -43,8 +43,8 @@ function useCountdown(seconds) {
   return [remaining, start]
 }
 
-function DemoTradePanel({ signal }) {
-  const [status, setStatus] = useState('idle') // 'idle' | 'starting' | 'open' | 'win' | 'loss' | 'error'
+function DemoTradePanel({ signal, initialOpenTrade }) {
+  const [status, setStatus] = useState('idle') // 'idle'|'starting'|'open'|'win'|'loss'|'timeout_win'|'timeout_loss'|'error'
   const [trade, setTrade] = useState(null)
   const [open, setOpen] = useState(false)
   const [elapsed, setElapsed] = useState(0)
@@ -56,7 +56,27 @@ function DemoTradePanel({ signal }) {
     clearInterval(elapsedTimerRef.current)
   }
 
-  useEffect(() => () => stopTimers(), [])
+  const startElapsedFrom = (openedAtSeconds) => {
+    const startingElapsed = Math.max(0, Math.floor(Date.now() / 1000 - openedAtSeconds))
+    setElapsed(startingElapsed)
+    elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+  }
+
+  // بازیابی خودکار: اگه از بک‌اند معلوم شد این ارز از قبل پوزیشن باز داره،
+  // به‌جای خالی نشون دادن پنل، همون رو بازسازی می‌کنیم (حتی بعد از رفرش صفحه)
+  useEffect(() => {
+    if (initialOpenTrade && !trade) {
+      setTrade(initialOpenTrade)
+      setStatus(initialOpenTrade.status)
+      setOpen(true)
+      startElapsedFrom(initialOpenTrade.opened_at)
+      if (initialOpenTrade.status === 'open') {
+        pollRef.current = setInterval(() => pollStatus(initialOpenTrade.trade_id), 15000)
+      }
+    }
+    return () => stopTimers()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialOpenTrade])
 
   const pollStatus = async (tradeId) => {
     try {
@@ -66,7 +86,7 @@ function DemoTradePanel({ signal }) {
       setTrade(data)
       if (data.status !== 'open') {
         setStatus(data.status)
-        stopTimers()
+        clearInterval(pollRef.current)
       }
     } catch {
       // موقتاً نادیده می‌گیریم، سیکل بعدی دوباره امتحان می‌کنه
@@ -76,7 +96,6 @@ function DemoTradePanel({ signal }) {
   const startDemo = async () => {
     setOpen(true)
     setStatus('starting')
-    setElapsed(0)
     try {
       const res = await fetch(`${API_BASE_URL}/demo-trade/start`, {
         method: 'POST',
@@ -93,20 +112,26 @@ function DemoTradePanel({ signal }) {
       const data = await res.json()
       if (!res.ok) throw new Error('شروع تست زنده ناموفق بود')
       setTrade(data)
-      setStatus('open')
-
-      elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
-      pollRef.current = setInterval(() => pollStatus(data.trade_id), 15000)
+      setStatus(data.status)
+      startElapsedFrom(data.opened_at)
+      if (data.status === 'open') {
+        pollRef.current = setInterval(() => pollStatus(data.trade_id), 15000)
+      }
     } catch {
       setStatus('error')
     }
   }
 
   const formatDuration = (sec) => {
-    const m = Math.floor(sec / 60)
-    const s = sec % 60
-    return m > 0 ? `${m} دقیقه و ${s} ثانیه` : `${s} ثانیه`
+    const h = Math.floor(sec / 3600)
+    const m = Math.floor((sec % 3600) / 60)
+    if (h > 0) return `${h} ساعت و ${m} دقیقه`
+    return `${m} دقیقه و ${sec % 60} ثانیه`
   }
+
+  const isResolved = ['win', 'loss', 'timeout_win', 'timeout_loss'].includes(status)
+  const isWin = status === 'win' || status === 'timeout_win'
+  const isTimeout = status === 'timeout_win' || status === 'timeout_loss'
 
   // فقط وقتی مقادیر واقعی معامله عوض بشه بازسازی می‌شه، نه هر ثانیه با تیک شمارنده
   const chartSignal = useMemo(() => {
@@ -122,11 +147,17 @@ function DemoTradePanel({ signal }) {
 
   return (
     <>
-      <button className="btn-mini" onClick={startDemo} disabled={status === 'starting' || status === 'open'}>
+      <button
+        className="btn-mini"
+        onClick={startDemo}
+        disabled={status === 'starting' || status === 'open'}
+      >
         {status === 'open'
           ? `در حال رصد… ${elapsed}s`
           : status === 'starting'
           ? 'در حال شروع…'
+          : isResolved
+          ? 'مشاهده‌ی نتیجه'
           : 'تست زنده سیگنال'}
       </button>
 
@@ -140,7 +171,7 @@ function DemoTradePanel({ signal }) {
           )}
           {status === 'open' && trade && (
             <div className="backtest-status">
-              ⏳ پوزیشن دمو باز است — رصد زنده قیمت (هر ۱۵ ثانیه بروزرسانی می‌شه)
+              ⏳ پوزیشن دمو باز است — رصد زنده قیمت (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
               {trade.current_price && (
                 <div dir="ltr" className="demo-current-price">
                   قیمت فعلی: {trade.current_price}
@@ -149,13 +180,15 @@ function DemoTradePanel({ signal }) {
             </div>
           )}
 
-          {trade && (status === 'open' || status === 'win' || status === 'loss') && (
-            <SignalChart parsedSignal={chartSignal} days={1} />
+          {trade && (status === 'open' || isResolved) && (
+            <SignalChart parsedSignal={chartSignal} interval="5m" />
           )}
-          {(status === 'win' || status === 'loss') && trade && (
+
+          {isResolved && trade && (
             <>
-              <div className={`demo-result-badge ${status === 'win' ? 'demo-win' : 'demo-loss'}`}>
-                {status === 'win' ? '✅ به هدف خورد' : '❌ به حد ضرر خورد'}
+              <div className={`demo-result-badge ${isWin ? 'demo-win' : 'demo-loss'}`}>
+                {isWin ? '✅ به سود رسید' : '❌ به ضرر رسید'}
+                {isTimeout && ' (پایان بازه‌ی ۴ ساعته)'}
               </div>
               <div className="backtest-grid">
                 <div>
@@ -227,17 +260,28 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
     }
   }
 
+  const hasSignal = rowData.direction && rowData.entry !== null && rowData.entry !== undefined
+  const isTriggered = rowData.signal_available
+
   return (
     <div className="watchlist-card">
       <div className="watchlist-card-top">
         <span className="watchlist-rank">{index + 1}</span>
         <span className="watchlist-symbol">{rowData.symbol}</span>
-        <span className={`watchlist-direction ${rowData.direction === 'long' ? 'dir-long' : 'dir-short'}`}>
-          {rowData.direction === 'long' ? 'لانگ' : 'شورت'}
-        </span>
+        {rowData.direction && (
+          <span className={`watchlist-direction ${rowData.direction === 'long' ? 'dir-long' : 'dir-short'}`}>
+            {rowData.direction === 'long' ? 'لانگ' : 'شورت'}
+          </span>
+        )}
         <span className={`watchlist-score-badge ${scoreLevel(rowData.confluence_score)}`}>
           {rowData.confluence_score}%
         </span>
+        {hasSignal && !isTriggered && (
+          <span className="watchlist-pending-badge">در انتظار تریگر ۱۵m/۵m</span>
+        )}
+        {rowData.open_trade?.stale_warning && (
+          <span className="watchlist-stale-badge">⚠️ بیش از {rowData.max_hold_hours || 4} ساعته بازه</span>
+        )}
         <span className="watchlist-time">{timeAgo(rowData.last_updated)}</span>
         <button
           className="row-refresh-btn"
@@ -249,24 +293,32 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
         </button>
       </div>
 
-      <div className="watchlist-details">
-        <div className="watchlist-detail-item">
-          <span className="detail-label">ورود</span>
-          <span dir="ltr" className="detail-value">{rowData.entry}</span>
+      {!hasSignal && (
+        <div className="watchlist-no-signal">
+          {(rowData.reasons || []).join(' — ') || 'روند تایم‌فریم‌های مختلف هم‌جهت نیست، سیگنالی صادر نشده.'}
         </div>
-        <div className="watchlist-detail-item">
-          <span className="detail-label">هدف</span>
-          <span dir="ltr" className="detail-value detail-target">{rowData.target}</span>
+      )}
+
+      {hasSignal && (
+        <div className="watchlist-details">
+          <div className="watchlist-detail-item">
+            <span className="detail-label">ورود</span>
+            <span dir="ltr" className="detail-value">{rowData.entry}</span>
+          </div>
+          <div className="watchlist-detail-item">
+            <span className="detail-label">هدف</span>
+            <span dir="ltr" className="detail-value detail-target">{rowData.target}</span>
+          </div>
+          <div className="watchlist-detail-item">
+            <span className="detail-label">حد ضرر</span>
+            <span dir="ltr" className="detail-value detail-stop">{rowData.stop_loss}</span>
+          </div>
+          <div className="watchlist-detail-item">
+            <span className="detail-label">اهرم</span>
+            <span dir="ltr" className="detail-value">{rowData.suggested_leverage}x</span>
+          </div>
         </div>
-        <div className="watchlist-detail-item">
-          <span className="detail-label">حد ضرر</span>
-          <span dir="ltr" className="detail-value detail-stop">{rowData.stop_loss}</span>
-        </div>
-        <div className="watchlist-detail-item">
-          <span className="detail-label">اهرم</span>
-          <span dir="ltr" className="detail-value">{rowData.suggested_leverage}x</span>
-        </div>
-      </div>
+      )}
 
       <div className="watchlist-actions">
         <button
@@ -276,14 +328,18 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing }) {
         >
           {isAnalyzing ? 'در حال تحلیل…' : 'تحلیل کامل'}
         </button>
-        <button className="btn-mini" disabled={exchangeStatus === 'sending'} onClick={handleSendToExchange}>
+        <button
+          className="btn-mini"
+          disabled={exchangeStatus === 'sending' || !hasSignal}
+          onClick={handleSendToExchange}
+        >
           {exchangeStatus === 'soon'
             ? 'به‌زودی 🚧'
             : exchangeStatus === 'sending'
             ? 'در حال ارسال…'
             : 'ارسال به صرافی'}
         </button>
-        <DemoTradePanel signal={rowData} />
+        {hasSignal && <DemoTradePanel signal={rowData} initialOpenTrade={rowData.open_trade} />}
       </div>
     </div>
   )
