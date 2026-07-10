@@ -48,20 +48,40 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
   const [trade, setTrade] = useState(null)
   const [open, setOpen] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [livePrice, setLivePrice] = useState(null)
   const [marginInput, setMarginInput] = useState('10')
   const [leverageInput, setLeverageInput] = useState(String(signal.suggested_leverage || 5))
   const pollRef = useRef(null)
   const elapsedTimerRef = useRef(null)
+  const livePriceTimerRef = useRef(null)
 
   const stopTimers = () => {
     clearInterval(pollRef.current)
     clearInterval(elapsedTimerRef.current)
+    clearInterval(livePriceTimerRef.current)
   }
 
   const startElapsedFrom = (openedAtSeconds) => {
     const startingElapsed = Math.max(0, Math.floor(Date.now() / 1000 - openedAtSeconds))
     setElapsed(startingElapsed)
     elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
+  }
+
+  // تایمر سبک و سریع (هر ۸ ثانیه) فقط برای قیمت لحظه‌ای — جدا از poll سنگین‌تر
+  // وضعیت (که هر ۱۵ ثانیه‌ست و کندل چک می‌کنه)، تا سود/زیان واقعاً «زنده»‌تر باشه
+  const startLivePriceTicker = (symbol) => {
+    const tick = async () => {
+      try {
+        const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
+        if (!res.ok) return
+        const data = await res.json()
+        if (typeof data.price === 'number') setLivePrice(data.price)
+      } catch {
+        // خطای موقت رو نادیده می‌گیریم، تیک بعدی دوباره امتحان می‌کنه
+      }
+    }
+    tick()
+    livePriceTimerRef.current = setInterval(tick, 8000)
   }
 
   // بازیابی خودکار: اگه از بک‌اند معلوم شد این ارز از قبل پوزیشن باز داره،
@@ -74,6 +94,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
       startElapsedFrom(initialOpenTrade.opened_at)
       if (initialOpenTrade.status === 'open') {
         pollRef.current = setInterval(() => pollStatus(initialOpenTrade.trade_id), 15000)
+        startLivePriceTicker(initialOpenTrade.symbol)
       }
     }
     return () => stopTimers()
@@ -90,6 +111,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
         setStatus(data.status)
         clearInterval(pollRef.current)
         clearInterval(elapsedTimerRef.current)
+        clearInterval(livePriceTimerRef.current)
         if (data.closed_at) {
           setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
         }
@@ -123,6 +145,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
       startElapsedFrom(data.opened_at)
       if (data.status === 'open') {
         pollRef.current = setInterval(() => pollStatus(data.trade_id), 15000)
+        startLivePriceTicker(data.symbol)
       }
     } catch {
       setStatus('error')
@@ -140,6 +163,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
       setStatus(data.status)
       clearInterval(pollRef.current)
       clearInterval(elapsedTimerRef.current)
+      clearInterval(livePriceTimerRef.current)
       if (data.closed_at) {
         setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
       }
@@ -239,29 +263,29 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
             <div className="backtest-status">
               ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
               (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
-              {trade.current_price && (
-                <>
-                  <div dir="ltr" className="demo-current-price">
-                    قیمت فعلی: {trade.current_price}
-                  </div>
-                  {(() => {
-                    const qty = trade.quantity || 0
-                    const unrealizedPnl =
-                      trade.direction === 'long'
-                        ? qty * (trade.current_price - trade.entry)
-                        : qty * (trade.entry - trade.current_price)
-                    return (
-                      <div
-                        dir="ltr"
-                        className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
-                      >
-                        سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
-                        {unrealizedPnl.toFixed(4)}$
-                      </div>
-                    )
-                  })()}
-                </>
-              )}
+              {(() => {
+                const price = livePrice ?? trade.current_price
+                if (!price) return null
+                const qty = trade.quantity || 0
+                const unrealizedPnl =
+                  trade.direction === 'long'
+                    ? qty * (price - trade.entry)
+                    : qty * (trade.entry - price)
+                return (
+                  <>
+                    <div dir="ltr" className="demo-current-price">
+                      قیمت لحظه‌ای: {price}
+                    </div>
+                    <div
+                      dir="ltr"
+                      className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
+                    >
+                      سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
+                      {unrealizedPnl.toFixed(4)}$
+                    </div>
+                  </>
+                )
+              })()}
               <button className="btn-mini demo-manual-close" onClick={closeManually}>
                 بستن دستی پوزیشن
               </button>
