@@ -460,7 +460,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
             ? 'به‌زودی 🚧'
             : liveExchangeStatus === 'sending'
             ? 'در حال ارسال…'
-            : 'ارسال به صرافی (لایو واقعی)'}
+            : 'ارسال به صرافی (حساب ریل)'}
         </button>
         {hasSignal && <DemoTradePanel signal={rowData} initialOpenTrade={rowData.open_trade} />}
       </div>
@@ -473,7 +473,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [status, setStatus] = useState('loading')
   const [isPartial, setIsPartial] = useState(false)
   const [filter, setFilter] = useState('all')
-  const [mode, setMode] = useState('strict') // 'strict' | 'relaxed'
+  const [mode, setMode] = useState('relaxed') // 'strict' | 'relaxed'
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
 
