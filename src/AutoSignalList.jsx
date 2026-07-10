@@ -44,10 +44,12 @@ function useCountdown(seconds) {
 }
 
 function DemoTradePanel({ signal, initialOpenTrade }) {
-  const [status, setStatus] = useState('idle') // 'idle'|'starting'|'open'|'win'|'loss'|'timeout_win'|'timeout_loss'|'error'
+  const [status, setStatus] = useState('idle') // 'idle'|'configuring'|'starting'|'open'|'win'|'loss'|'timeout_win'|'timeout_loss'|'manual_win'|'manual_loss'|'closing'|'error'
   const [trade, setTrade] = useState(null)
   const [open, setOpen] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [marginInput, setMarginInput] = useState('10')
+  const [leverageInput, setLeverageInput] = useState(String(signal.suggested_leverage || 5))
   const pollRef = useRef(null)
   const elapsedTimerRef = useRef(null)
 
@@ -98,7 +100,6 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
   }
 
   const startDemo = async () => {
-    setOpen(true)
     setStatus('starting')
     try {
       const res = await fetch(`${API_BASE_URL}/demo-trade/start`, {
@@ -110,8 +111,9 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
           entry: signal.entry,
           target: signal.target,
           stop_loss: signal.stop_loss,
-          leverage: signal.suggested_leverage,
+          leverage: parseFloat(leverageInput) || 5,
           mode: signal.mode || 'strict',
+          margin_usdt: parseFloat(marginInput) || 10,
         }),
       })
       const data = await res.json()
@@ -127,6 +129,25 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     }
   }
 
+  const closeManually = async () => {
+    if (!trade) return
+    setStatus('closing')
+    try {
+      const res = await fetch(`${API_BASE_URL}/demo-trade/close/${trade.trade_id}`, { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error('بستن پوزیشن ناموفق بود')
+      setTrade(data)
+      setStatus(data.status)
+      clearInterval(pollRef.current)
+      clearInterval(elapsedTimerRef.current)
+      if (data.closed_at) {
+        setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
+      }
+    } catch {
+      setStatus('open') // برگردون به حالت باز، کاربر می‌تونه دوباره امتحان کنه
+    }
+  }
+
   const formatDuration = (sec) => {
     const h = Math.floor(sec / 3600)
     const m = Math.floor((sec % 3600) / 60)
@@ -134,9 +155,10 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     return `${m} دقیقه و ${sec % 60} ثانیه`
   }
 
-  const isResolved = ['win', 'loss', 'timeout_win', 'timeout_loss'].includes(status)
-  const isWin = status === 'win' || status === 'timeout_win'
+  const isResolved = ['win', 'loss', 'timeout_win', 'timeout_loss', 'manual_win', 'manual_loss'].includes(status)
+  const isWin = status === 'win' || status === 'timeout_win' || status === 'manual_win'
   const isTimeout = status === 'timeout_win' || status === 'timeout_loss'
+  const isManual = status === 'manual_win' || status === 'manual_loss'
 
   // فقط وقتی مقادیر واقعی معامله عوض بشه بازسازی می‌شه، نه هر ثانیه با تیک شمارنده
   const chartSignal = useMemo(() => {
@@ -150,17 +172,28 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     }
   }, [trade?.symbol, trade?.direction, trade?.entry, trade?.target, trade?.stop_loss])
 
+  const handleMainClick = () => {
+    if (isResolved) {
+      setOpen(true)
+      return
+    }
+    setOpen(true)
+    setStatus('configuring')
+  }
+
   return (
     <>
       <button
         className="btn-mini"
-        onClick={isResolved ? () => setOpen(true) : startDemo}
-        disabled={status === 'starting' || status === 'open'}
+        onClick={handleMainClick}
+        disabled={status === 'starting' || status === 'open' || status === 'closing'}
       >
         {status === 'open'
           ? `در حال رصد… ${elapsed}s`
           : status === 'starting'
           ? 'در حال شروع…'
+          : status === 'closing'
+          ? 'در حال بستن…'
           : isResolved
           ? 'مشاهده‌ی نتیجه'
           : 'تست زنده سیگنال'}
@@ -168,6 +201,34 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
 
       {open && (
         <div className="backtest-panel">
+          {status === 'configuring' && (
+            <div className="demo-config-form">
+              <div className="demo-config-row">
+                <label>مبلغ ورودی (USDT)</label>
+                <input
+                  type="number"
+                  value={marginInput}
+                  onChange={(e) => setMarginInput(e.target.value)}
+                  className="demo-config-input"
+                  dir="ltr"
+                />
+              </div>
+              <div className="demo-config-row">
+                <label>اهرم</label>
+                <input
+                  type="number"
+                  value={leverageInput}
+                  onChange={(e) => setLeverageInput(e.target.value)}
+                  className="demo-config-input"
+                  dir="ltr"
+                />
+              </div>
+              <button className="btn-mini btn-mini-primary" onClick={startDemo}>
+                شروع پوزیشن دمو
+              </button>
+            </div>
+          )}
+
           {status === 'starting' && (
             <div className="backtest-status">در حال باز کردن پوزیشن دمو…</div>
           )}
@@ -176,12 +237,16 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
           )}
           {status === 'open' && trade && (
             <div className="backtest-status">
-              ⏳ پوزیشن دمو باز است — رصد زنده قیمت (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
+              ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
+              (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
               {trade.current_price && (
                 <div dir="ltr" className="demo-current-price">
                   قیمت فعلی: {trade.current_price}
                 </div>
               )}
+              <button className="btn-mini demo-manual-close" onClick={closeManually}>
+                بستن دستی پوزیشن
+              </button>
             </div>
           )}
 
@@ -194,6 +259,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               <div className={`demo-result-badge ${isWin ? 'demo-win' : 'demo-loss'}`}>
                 {isWin ? '✅ به سود رسید' : '❌ به ضرر رسید'}
                 {isTimeout && ' (پایان بازه‌ی ۴ ساعته)'}
+                {isManual && ' (بستن دستی)'}
               </div>
               <div className="backtest-grid">
                 <div>
@@ -207,6 +273,12 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
                 <div>
                   <span className="detail-label">خروج</span>
                   <div dir="ltr" className="detail-value">{trade.exit_price}</div>
+                </div>
+                <div>
+                  <span className="detail-label">سود/زیان</span>
+                  <div dir="ltr" className={`detail-value ${trade.realized_pnl >= 0 ? 'detail-target' : 'detail-stop'}`}>
+                    {trade.realized_pnl >= 0 ? '+' : ''}{trade.realized_pnl}$
+                  </div>
                 </div>
                 <div>
                   <span className="detail-label">مدت زمان</span>
@@ -228,7 +300,6 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const [remaining, startCooldown] = useCountdown(ROW_REFRESH_COOLDOWN)
   const [refreshing, setRefreshing] = useState(false)
   const [rowData, setRowData] = useState(signal)
-  const [demoExchangeStatus, setDemoExchangeStatus] = useState(null)
   const [liveExchangeStatus, setLiveExchangeStatus] = useState(null)
 
   useEffect(() => setRowData(signal), [signal])
@@ -253,21 +324,20 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
     }
   }
 
-  const handleSendToExchange = async (target) => {
-    const setter = target === 'live' ? setLiveExchangeStatus : setDemoExchangeStatus
-    setter('sending')
+  const handleSendToExchange = async () => {
+    setLiveExchangeStatus('sending')
     try {
-      const res = await fetch(`${API_BASE_URL}/send-to-exchange-${target}`, {
+      const res = await fetch(`${API_BASE_URL}/send-to-exchange-live`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: rowData.symbol }),
       })
       const data = await res.json()
-      setter(data.status === 'coming_soon' ? 'soon' : 'sent')
+      setLiveExchangeStatus(data.status === 'coming_soon' ? 'soon' : 'sent')
     } catch {
-      setter('error')
+      setLiveExchangeStatus('error')
     } finally {
-      setTimeout(() => setter(null), 4000)
+      setTimeout(() => setLiveExchangeStatus(null), 4000)
     }
   }
 
@@ -341,19 +411,8 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
         </button>
         <button
           className="btn-mini"
-          disabled={demoExchangeStatus === 'sending' || !hasSignal}
-          onClick={() => handleSendToExchange('demo')}
-        >
-          {demoExchangeStatus === 'soon'
-            ? 'به‌زودی 🚧'
-            : demoExchangeStatus === 'sending'
-            ? 'در حال ارسال…'
-            : 'ارسال به صرافی (دمو تست)'}
-        </button>
-        <button
-          className="btn-mini"
           disabled={liveExchangeStatus === 'sending' || !hasSignal}
-          onClick={() => handleSendToExchange('live')}
+          onClick={handleSendToExchange}
         >
           {liveExchangeStatus === 'soon'
             ? 'به‌زودی 🚧'
