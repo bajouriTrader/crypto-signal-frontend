@@ -87,6 +87,10 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
       if (data.status !== 'open') {
         setStatus(data.status)
         clearInterval(pollRef.current)
+        clearInterval(elapsedTimerRef.current)
+        if (data.closed_at) {
+          setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
+        }
       }
     } catch {
       // موقتاً نادیده می‌گیریم، سیکل بعدی دوباره امتحان می‌کنه
@@ -150,7 +154,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     <>
       <button
         className="btn-mini"
-        onClick={startDemo}
+        onClick={isResolved ? () => setOpen(true) : startDemo}
         disabled={status === 'starting' || status === 'open'}
       >
         {status === 'open'
