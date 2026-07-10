@@ -55,6 +55,7 @@ function DemoTradesTable({ rows }) {
             <th>باز شدن</th>
             <th>نماد</th>
             <th>جهت</th>
+            <th>حالت</th>
             <th>ورود</th>
             <th>هدف</th>
             <th>حد ضرر</th>
@@ -68,6 +69,7 @@ function DemoTradesTable({ rows }) {
               <td>{fmtTime(r.opened_at)}</td>
               <td>{r.symbol}</td>
               <td>{r.direction === 'long' ? 'لانگ' : 'شورت'}</td>
+              <td>{r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</td>
               <td dir="ltr">{r.entry}</td>
               <td dir="ltr">{r.target}</td>
               <td dir="ltr">{r.stop_loss}</td>
@@ -111,6 +113,30 @@ function StatsPanel({ stats }) {
           <span className="stats-card-label">بسته‌شده با Timeout</span>
           <span className="stats-card-value" dir="ltr">{stats.timeouts}</span>
         </div>
+      </div>
+
+      <h3 className="stats-section-title">تفکیک بر اساس حالت (سخت‌گیر / ساده‌گیر)</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>حالت</th>
+              <th>تعداد</th>
+              <th>برد</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(stats.by_mode || {}).map(([m, v]) => (
+              <tr key={m}>
+                <td>{m === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</td>
+                <td dir="ltr">{v.total}</td>
+                <td dir="ltr">{v.wins}</td>
+                <td dir="ltr">{v.win_rate !== null ? `${v.win_rate}%` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <h3 className="stats-section-title">تفکیک بر اساس جهت</h3>
