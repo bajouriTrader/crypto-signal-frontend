@@ -205,6 +205,41 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     setStatus('configuring')
   }
 
+  const renderLiveStatus = (key) => {
+    if (status !== 'open' || !trade) return null
+    const price = livePrice ?? trade.current_price
+    return (
+      <div className="backtest-status" key={key}>
+        ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
+        (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
+        {price && (() => {
+          const qty = trade.quantity || 0
+          const unrealizedPnl =
+            trade.direction === 'long'
+              ? qty * (price - trade.entry)
+              : qty * (trade.entry - price)
+          return (
+            <>
+              <div dir="ltr" className="demo-current-price">
+                قیمت لحظه‌ای: {price}
+              </div>
+              <div
+                dir="ltr"
+                className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
+              >
+                سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
+                {unrealizedPnl.toFixed(4)}$
+              </div>
+            </>
+          )
+        })()}
+        <button className="btn-mini demo-manual-close" onClick={closeManually}>
+          بستن دستی پوزیشن
+        </button>
+      </div>
+    )
+  }
+
   return (
     <>
       <button
@@ -239,13 +274,16 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               </div>
               <div className="demo-config-row">
                 <label>اهرم</label>
-                <input
-                  type="number"
-                  value={leverageInput}
-                  onChange={(e) => setLeverageInput(e.target.value)}
-                  className="demo-config-input"
-                  dir="ltr"
-                />
+                <div className="demo-config-input-wrap">
+                  <input
+                    type="number"
+                    value={leverageInput}
+                    onChange={(e) => setLeverageInput(e.target.value)}
+                    className="demo-config-input"
+                    dir="ltr"
+                  />
+                  <span className="demo-config-suffix">x</span>
+                </div>
               </div>
               <button className="btn-mini btn-mini-primary" onClick={startDemo}>
                 شروع پوزیشن دمو
@@ -259,42 +297,13 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
           {status === 'error' && (
             <div className="backtest-status">شروع تست زنده ناموفق بود، دوباره امتحان کن.</div>
           )}
-          {status === 'open' && trade && (
-            <div className="backtest-status">
-              ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
-              (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
-              {(() => {
-                const price = livePrice ?? trade.current_price
-                if (!price) return null
-                const qty = trade.quantity || 0
-                const unrealizedPnl =
-                  trade.direction === 'long'
-                    ? qty * (price - trade.entry)
-                    : qty * (trade.entry - price)
-                return (
-                  <>
-                    <div dir="ltr" className="demo-current-price">
-                      قیمت لحظه‌ای: {price}
-                    </div>
-                    <div
-                      dir="ltr"
-                      className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
-                    >
-                      سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
-                      {unrealizedPnl.toFixed(4)}$
-                    </div>
-                  </>
-                )
-              })()}
-              <button className="btn-mini demo-manual-close" onClick={closeManually}>
-                بستن دستی پوزیشن
-              </button>
-            </div>
-          )}
+          {status === 'open' && renderLiveStatus('top')}
 
           {trade && (status === 'open' || isResolved) && (
             <SignalChart parsedSignal={chartSignal} interval="5m" />
           )}
+
+          {status === 'open' && renderLiveStatus('bottom')}
 
           {isResolved && trade && (
             <>
