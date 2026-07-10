@@ -1136,3 +1136,9 @@ body {
 .demo-manual-close:hover:not(:disabled) {
   background: rgba(255, 92, 114, 0.1);
 }
+
+.demo-unrealized-pnl {
+  margin-top: 4px;
+  font-size: 14px;
+  font-weight: 700;
+}
