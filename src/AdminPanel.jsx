@@ -43,6 +43,8 @@ function statusLabel(status) {
   if (status === 'loss') return '❌ باخت'
   if (status === 'timeout_win') return '✅ برد (پایان بازه)'
   if (status === 'timeout_loss') return '❌ باخت (پایان بازه)'
+  if (status === 'manual_win') return '✅ برد (دستی)'
+  if (status === 'manual_loss') return '❌ باخت (دستی)'
   return status
 }
 
@@ -56,11 +58,13 @@ function DemoTradesTable({ rows }) {
             <th>نماد</th>
             <th>جهت</th>
             <th>حالت</th>
+            <th>مبلغ</th>
             <th>ورود</th>
             <th>هدف</th>
             <th>حد ضرر</th>
             <th>وضعیت</th>
             <th>خروج</th>
+            <th>سود/زیان</th>
           </tr>
         </thead>
         <tbody>
@@ -70,11 +74,13 @@ function DemoTradesTable({ rows }) {
               <td>{r.symbol}</td>
               <td>{r.direction === 'long' ? 'لانگ' : 'شورت'}</td>
               <td>{r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</td>
+              <td dir="ltr">{r.margin_usdt ?? 10}$ / {r.leverage}x</td>
               <td dir="ltr">{r.entry}</td>
               <td dir="ltr">{r.target}</td>
               <td dir="ltr">{r.stop_loss}</td>
               <td>{statusLabel(r.status)}</td>
               <td dir="ltr">{r.exit_price ?? '—'}</td>
+              <td dir="ltr">{r.realized_pnl !== null && r.realized_pnl !== undefined ? `${r.realized_pnl >= 0 ? '+' : ''}${r.realized_pnl}$` : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -112,6 +118,10 @@ function StatsPanel({ stats }) {
         <div className="stats-card">
           <span className="stats-card-label">بسته‌شده با Timeout</span>
           <span className="stats-card-value" dir="ltr">{stats.timeouts}</span>
+        </div>
+        <div className="stats-card">
+          <span className="stats-card-label">بسته‌شده دستی</span>
+          <span className="stats-card-value" dir="ltr">{stats.manual_closes}</span>
         </div>
       </div>
 
