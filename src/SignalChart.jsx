@@ -1,3 +1,4 @@
+import { authFetch } from './auth'
 import { useEffect, useRef, useState } from 'react'
 import { createChart, ColorType } from 'lightweight-charts'
 
@@ -6,7 +7,7 @@ const REFRESH_INTERVAL_MS = 60 * 1000 // هر ۶۰ ثانیه داده‌ی چا
 const LIVE_PRICE_INTERVAL_MS = 15 * 1000 // هر ۱۵ ثانیه قیمت لحظه‌ای بروز می‌شه
 
 async function fetchCandles(symbol, interval) {
-  const res = await fetch(
+  const res = await authFetch(
     `${API_BASE_URL}/market/klines?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=150`
   )
   if (!res.ok) throw new Error('دریافت داده قیمت ناموفق بود')
@@ -54,7 +55,7 @@ export default function SignalChart({ parsedSignal, interval = '15m' }) {
 
     async function updateLivePrice(symbol) {
       try {
-        const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
+        const res = await authFetch(`${API_BASE_URL}/live-price/${symbol}`)
         if (!res.ok) return
         const data = await res.json()
         if (disposed || typeof data.price !== 'number') return
