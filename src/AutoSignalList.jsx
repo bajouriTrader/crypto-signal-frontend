@@ -1,3 +1,4 @@
+import { authFetch } from './auth'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import SignalChart from './SignalChart'
 
@@ -74,7 +75,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
   const fetchLivePriceNow = async (symbol, showSpinner = false) => {
     if (showSpinner) setPriceRefreshing(true)
     try {
-      const res = await fetch(`${API_BASE_URL}/live-price/${symbol}`)
+      const res = await authFetch(`${API_BASE_URL}/live-price/${symbol}`)
       if (res.ok) {
         const data = await res.json()
         if (typeof data.price === 'number') setLivePrice(data.price)
@@ -113,7 +114,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
 
   const pollStatus = async (tradeId) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/demo-trade/status/${tradeId}`)
+      const res = await authFetch(`${API_BASE_URL}/demo-trade/status/${tradeId}`)
       const data = await res.json()
       if (!res.ok) throw new Error('trade not found')
       setTrade(data)
@@ -134,7 +135,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
   const startDemo = async () => {
     setStatus('starting')
     try {
-      const res = await fetch(`${API_BASE_URL}/demo-trade/start`, {
+      const res = await authFetch(`${API_BASE_URL}/demo-trade/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -166,7 +167,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
     if (!trade) return
     setStatus('closing')
     try {
-      const res = await fetch(`${API_BASE_URL}/demo-trade/close/${trade.trade_id}`, { method: 'POST' })
+      const res = await authFetch(`${API_BASE_URL}/demo-trade/close/${trade.trade_id}`, { method: 'POST' })
       const data = await res.json()
       if (!res.ok) throw new Error('بستن پوزیشن ناموفق بود')
       setTrade(data)
@@ -230,15 +231,19 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               : qty * (trade.entry - price)
           return (
             <>
-              <div dir="ltr" className="demo-current-price">
-                قیمت لحظه‌ای: {price}
+              <div className="demo-price-row">
+                <span className="demo-row-label">قیمت لحظه‌ای:</span>
+                <span dir="ltr" className="demo-current-price">{price}</span>
               </div>
-              <div
-                dir="ltr"
-                className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
-              >
-                سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
-                {unrealizedPnl.toFixed(4)}$
+              <div className="demo-price-row">
+                <span className="demo-row-label">سود/زیان لحظه‌ای:</span>
+                <span
+                  dir="ltr"
+                  className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
+                >
+                  {unrealizedPnl >= 0 ? '+' : ''}
+                  {unrealizedPnl.toFixed(4)}$
+                </span>
                 <button
                   className="pnl-refresh-btn"
                   onClick={() => fetchLivePriceNow(trade.symbol, true)}
@@ -376,7 +381,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const handleRowRefresh = async () => {
     setRefreshing(true)
     try {
-      const res = await fetch(`${API_BASE_URL}/refresh-signal`, {
+      const res = await authFetch(`${API_BASE_URL}/refresh-signal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: rowData.symbol, mode }),
@@ -396,7 +401,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const handleSendToExchange = async () => {
     setLiveExchangeStatus('sending')
     try {
-      const res = await fetch(`${API_BASE_URL}/send-to-exchange-live`, {
+      const res = await authFetch(`${API_BASE_URL}/send-to-exchange-live`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ symbol: rowData.symbol }),
@@ -506,7 +511,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
   const loadList = async (activeMode) => {
     try {
-      const res = await fetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=${activeMode}`)
+      const res = await authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=${activeMode}`)
       if (!res.ok) throw new Error('خطا در دریافت لیست')
       const data = await res.json()
       setSignals(data.signals || [])
