@@ -240,9 +240,27 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
               (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
               {trade.current_price && (
-                <div dir="ltr" className="demo-current-price">
-                  قیمت فعلی: {trade.current_price}
-                </div>
+                <>
+                  <div dir="ltr" className="demo-current-price">
+                    قیمت فعلی: {trade.current_price}
+                  </div>
+                  {(() => {
+                    const qty = trade.quantity || 0
+                    const unrealizedPnl =
+                      trade.direction === 'long'
+                        ? qty * (trade.current_price - trade.entry)
+                        : qty * (trade.entry - trade.current_price)
+                    return (
+                      <div
+                        dir="ltr"
+                        className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
+                      >
+                        سود/زیان لحظه‌ای: {unrealizedPnl >= 0 ? '+' : ''}
+                        {unrealizedPnl.toFixed(4)}$
+                      </div>
+                    )
+                  })()}
+                </>
               )}
               <button className="btn-mini demo-manual-close" onClick={closeManually}>
                 بستن دستی پوزیشن
