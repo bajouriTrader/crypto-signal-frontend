@@ -12,6 +12,12 @@ function scoreLevel(score) {
   return 'score-low'
 }
 
+function modeLabel(mode) {
+  if (mode === 'relaxed') return 'ساده‌گیر'
+  if (mode === 'manual') return 'دستی'
+  return 'سخت‌گیر'
+}
+
 function timeAgo(epochSeconds) {
   if (!epochSeconds) return ''
   const diff = Math.max(0, Date.now() / 1000 - epochSeconds)
@@ -44,7 +50,53 @@ function useCountdown(seconds) {
   return [remaining, start]
 }
 
-function DemoTradePanel({ signal, initialOpenTrade }) {
+// ---------------------------------------------------------------------------
+// دکمه‌ی «ارسال به صرافی» — جدا شده تا هم توی کارت واچ‌لیست خودکار، هم زیر
+// نتیجه‌ی تحلیل دستی (App.jsx) قابل استفاده باشه بدون تکرار کد
+// ---------------------------------------------------------------------------
+export function SendToExchangeButton({ symbol, hasSignal, className = 'btn-mini' }) {
+  const [liveExchangeStatus, setLiveExchangeStatus] = useState(null)
+
+  const handleSendToExchange = async () => {
+    setLiveExchangeStatus('sending')
+    try {
+      const res = await authFetch(`${API_BASE_URL}/send-to-exchange-live`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol }),
+      })
+      const data = await res.json()
+      setLiveExchangeStatus(data.status === 'coming_soon' ? 'soon' : 'sent')
+    } catch {
+      setLiveExchangeStatus('error')
+    } finally {
+      setTimeout(() => setLiveExchangeStatus(null), 4000)
+    }
+  }
+
+  return (
+    <button
+      className={className}
+      disabled={liveExchangeStatus === 'sending' || !hasSignal}
+      onClick={handleSendToExchange}
+    >
+      {liveExchangeStatus === 'soon'
+        ? 'به‌زودی 🚧'
+        : liveExchangeStatus === 'sending'
+        ? 'در حال ارسال…'
+        : liveExchangeStatus === 'sent'
+        ? 'ارسال شد ✅'
+        : liveExchangeStatus === 'error'
+        ? 'خطا در ارسال'
+        : 'ارسال به صرافی (حساب ریل)'}
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// پنل تست زنده (Paper Trade) — از App.jsx (تحلیل دستی) هم export و استفاده می‌شه
+// ---------------------------------------------------------------------------
+export function DemoTradePanel({ signal, initialOpenTrade }) {
   const [status, setStatus] = useState('idle') // 'idle'|'configuring'|'starting'|'open'|'win'|'loss'|'timeout_win'|'timeout_loss'|'manual_win'|'manual_loss'|'closing'|'error'
   const [trade, setTrade] = useState(null)
   const [open, setOpen] = useState(false)
@@ -338,7 +390,7 @@ function DemoTradePanel({ signal, initialOpenTrade }) {
               <div className="backtest-grid">
                 <div>
                   <span className="detail-label">حالت</span>
-                  <div className="detail-value">{trade.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</div>
+                  <div className="detail-value">{modeLabel(trade.mode)}</div>
                 </div>
                 <div>
                   <span className="detail-label">ورود</span>
@@ -374,7 +426,6 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const [remaining, startCooldown] = useCountdown(ROW_REFRESH_COOLDOWN)
   const [refreshing, setRefreshing] = useState(false)
   const [rowData, setRowData] = useState(signal)
-  const [liveExchangeStatus, setLiveExchangeStatus] = useState(null)
 
   useEffect(() => setRowData(signal), [signal])
 
@@ -395,23 +446,6 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
       // بی‌صدا نادیده می‌گیریم، کاربر می‌تونه دوباره امتحان کنه
     } finally {
       setRefreshing(false)
-    }
-  }
-
-  const handleSendToExchange = async () => {
-    setLiveExchangeStatus('sending')
-    try {
-      const res = await authFetch(`${API_BASE_URL}/send-to-exchange-live`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: rowData.symbol }),
-      })
-      const data = await res.json()
-      setLiveExchangeStatus(data.status === 'coming_soon' ? 'soon' : 'sent')
-    } catch {
-      setLiveExchangeStatus('error')
-    } finally {
-      setTimeout(() => setLiveExchangeStatus(null), 4000)
     }
   }
 
@@ -483,17 +517,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
         >
           {isAnalyzing ? 'در حال تحلیل…' : 'تحلیل کامل'}
         </button>
-        <button
-          className="btn-mini"
-          disabled={liveExchangeStatus === 'sending' || !hasSignal}
-          onClick={handleSendToExchange}
-        >
-          {liveExchangeStatus === 'soon'
-            ? 'به‌زودی 🚧'
-            : liveExchangeStatus === 'sending'
-            ? 'در حال ارسال…'
-            : 'ارسال به صرافی (حساب ریل)'}
-        </button>
+        <SendToExchangeButton symbol={rowData.symbol} hasSignal={hasSignal} />
         {hasSignal && <DemoTradePanel signal={rowData} initialOpenTrade={rowData.open_trade} />}
       </div>
     </div>
@@ -508,6 +532,23 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [mode, setMode] = useState('relaxed') // 'strict' | 'relaxed'
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
+
+  // تعداد سیگنال‌هایی که در حالت سخت‌گیر تا نقطه‌ی «تست زنده» پیش رفتن —
+  // از دیتای واقعی demo_trades می‌گیریم (نه یه شمارنده‌ی جدا)، چون این
+  // دقیقاً یعنی «سیگنالی که واقعاً به تست زنده رسیده»
+  const [strictLiveCount, setStrictLiveCount] = useState(null)
+
+  const loadStrictCount = async () => {
+    try {
+      const res = await authFetch(`${API_BASE_URL}/demo-trade/stats`)
+      if (!res.ok) return
+      const data = await res.json()
+      const strict = data?.by_mode?.strict
+      if (strict) setStrictLiveCount(strict.total)
+    } catch {
+      // بی‌صدا نادیده می‌گیریم
+    }
+  }
 
   const loadList = async (activeMode) => {
     try {
@@ -537,6 +578,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
     setStatus('loading')
     initialLoad()
+    loadStrictCount()
     return () => {
       cancelled = true
       if (pollTimer) clearTimeout(pollTimer)
@@ -545,7 +587,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
   const handleGlobalRefresh = async () => {
     setGlobalRefreshing(true)
-    await loadList(mode)
+    await Promise.all([loadList(mode), loadStrictCount()])
     setGlobalRefreshing(false)
     startGlobalCooldown()
   }
@@ -563,6 +605,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
             onChange={() => setMode('strict')}
           />
           سخت‌گیر (دقت بالاتر، سیگنال کمتر)
+          {strictLiveCount !== null && <span dir="ltr"> ({strictLiveCount})</span>}
         </label>
         <label className={`mode-option ${mode === 'relaxed' ? 'mode-option-active' : ''}`}>
           <input
