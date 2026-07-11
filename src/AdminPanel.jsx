@@ -1,5 +1,6 @@
 import { authFetch } from './auth'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 const ADMIN_PASSCODE = 'bajouri1404' // فقط یه محافظت ساده سمت کلاینت، امنیت واقعی نیست
@@ -11,6 +12,25 @@ function fmtTime(iso) {
   } catch {
     return iso
   }
+}
+
+function statusLabel(status) {
+  if (status === 'open') return '⏳ باز'
+  if (status === 'win') return '✅ برد'
+  if (status === 'loss') return '❌ باخت'
+  if (status === 'timeout_win') return '✅ برد (پایان بازه)'
+  if (status === 'timeout_loss') return '❌ باخت (پایان بازه)'
+  if (status === 'manual_win') return '✅ برد (دستی)'
+  if (status === 'manual_loss') return '❌ باخت (دستی)'
+  return status
+}
+
+// گروه‌بندی وضعیت‌های خام برای فیلتر «نتیجه»
+function outcomeGroup(status) {
+  if (status === 'open') return 'open'
+  if (status?.includes('win')) return 'win'
+  if (status?.includes('loss')) return 'loss'
+  return 'other'
 }
 
 function AnalysesTable({ rows }) {
@@ -36,17 +56,6 @@ function AnalysesTable({ rows }) {
       </table>
     </div>
   )
-}
-
-function statusLabel(status) {
-  if (status === 'open') return '⏳ باز'
-  if (status === 'win') return '✅ برد'
-  if (status === 'loss') return '❌ باخت'
-  if (status === 'timeout_win') return '✅ برد (پایان بازه)'
-  if (status === 'timeout_loss') return '❌ باخت (پایان بازه)'
-  if (status === 'manual_win') return '✅ برد (دستی)'
-  if (status === 'manual_loss') return '❌ باخت (دستی)'
-  return status
 }
 
 function DemoTradesTable({ rows }) {
@@ -201,6 +210,178 @@ function StatsPanel({ stats }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// فیلتر + خروجی گزارش (Excel / Markdown)
+// ---------------------------------------------------------------------------
+
+const DEFAULT_FILTERS = {
+  from: '',
+  to: '',
+  outcome: 'all', // all | win | loss | open
+  mode: 'all', // all | strict | relaxed
+  direction: 'all', // all | long | short
+  symbol: '',
+}
+
+function applyFilters(rows, f) {
+  return rows.filter((r) => {
+    if (f.from && new Date(r.opened_at) < new Date(f.from)) return false
+    if (f.to && new Date(r.opened_at) > new Date(`${f.to}T23:59:59`)) return false
+    if (f.outcome !== 'all' && outcomeGroup(r.status) !== f.outcome) return false
+    if (f.mode !== 'all' && r.mode !== f.mode) return false
+    if (f.direction !== 'all' && r.direction !== f.direction) return false
+    if (f.symbol && !r.symbol?.toUpperCase().includes(f.symbol.toUpperCase())) return false
+    return true
+  })
+}
+
+function computeSummary(rows) {
+  const resolved = rows.filter((r) => outcomeGroup(r.status) === 'win' || outcomeGroup(r.status) === 'loss')
+  const wins = resolved.filter((r) => outcomeGroup(r.status) === 'win').length
+  const losses = resolved.length - wins
+  const winRate = resolved.length ? Math.round((wins / resolved.length) * 1000) / 10 : null
+  return { total: rows.length, resolved: resolved.length, wins, losses, winRate }
+}
+
+function exportToExcel(rows, summary) {
+  const data = rows.map((r) => ({
+    'زمان باز شدن': fmtTime(r.opened_at),
+    'زمان بسته شدن': fmtTime(r.closed_at),
+    'نماد': r.symbol,
+    'جهت': r.direction === 'long' ? 'لانگ' : 'شورت',
+    'حالت': r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر',
+    'مبلغ (USDT)': r.margin_usdt ?? 10,
+    'اهرم': r.leverage,
+    'ورود': r.entry,
+    'هدف': r.target,
+    'حد ضرر': r.stop_loss,
+    'وضعیت': statusLabel(r.status),
+    'قیمت خروج': r.exit_price ?? '',
+    'سود/زیان ($)': r.realized_pnl ?? '',
+  }))
+
+  const ws = XLSX.utils.json_to_sheet(data)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'معاملات دمو')
+
+  const summarySheet = XLSX.utils.json_to_sheet([
+    { 'شاخص': 'تعداد کل', 'مقدار': summary.total },
+    { 'شاخص': 'بسته‌شده', 'مقدار': summary.resolved },
+    { 'شاخص': 'برد', 'مقدار': summary.wins },
+    { 'شاخص': 'باخت', 'مقدار': summary.losses },
+    { 'شاخص': 'Win Rate (%)', 'مقدار': summary.winRate ?? '—' },
+  ])
+  XLSX.utils.book_append_sheet(wb, summarySheet, 'خلاصه')
+
+  XLSX.writeFile(wb, `demo-trades-${new Date().toISOString().slice(0, 10)}.xlsx`)
+}
+
+function exportToMarkdown(rows, summary, filters) {
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان']
+  let md = `# گزارش معاملات دمو\n\n`
+  md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
+
+  const activeFilters = []
+  if (filters.from) activeFilters.push(`از ${filters.from}`)
+  if (filters.to) activeFilters.push(`تا ${filters.to}`)
+  if (filters.outcome !== 'all') activeFilters.push(`نتیجه: ${filters.outcome}`)
+  if (filters.mode !== 'all') activeFilters.push(`حالت: ${filters.mode}`)
+  if (filters.direction !== 'all') activeFilters.push(`جهت: ${filters.direction}`)
+  if (filters.symbol) activeFilters.push(`نماد شامل: ${filters.symbol}`)
+  if (activeFilters.length) md += `فیلترهای فعال: ${activeFilters.join(' | ')}\n\n`
+
+  md += `**تعداد کل:** ${summary.total} — **بسته‌شده:** ${summary.resolved} — **برد:** ${summary.wins} — **باخت:** ${summary.losses} — **Win Rate:** ${summary.winRate ?? '—'}%\n\n`
+
+  md += `| ${headers.join(' | ')} |\n`
+  md += `| ${headers.map(() => '---').join(' | ')} |\n`
+  rows.forEach((r) => {
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} |\n`
+  })
+
+  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `demo-trades-${new Date().toISOString().slice(0, 10)}.md`
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
+function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdown }) {
+  const update = (key) => (e) => setFilters((f) => ({ ...f, [key]: e.target.value }))
+
+  return (
+    <div className="report-filter-bar">
+      <div className="report-filter-row">
+        <label className="report-filter-field">
+          <span>از تاریخ</span>
+          <input type="date" value={filters.from} onChange={update('from')} />
+        </label>
+        <label className="report-filter-field">
+          <span>تا تاریخ</span>
+          <input type="date" value={filters.to} onChange={update('to')} />
+        </label>
+        <label className="report-filter-field">
+          <span>نتیجه</span>
+          <select value={filters.outcome} onChange={update('outcome')}>
+            <option value="all">همه</option>
+            <option value="win">فقط برد</option>
+            <option value="loss">فقط باخت</option>
+            <option value="open">هنوز باز</option>
+          </select>
+        </label>
+        <label className="report-filter-field">
+          <span>حالت</span>
+          <select value={filters.mode} onChange={update('mode')}>
+            <option value="all">همه</option>
+            <option value="strict">سخت‌گیر</option>
+            <option value="relaxed">ساده‌گیر</option>
+          </select>
+        </label>
+        <label className="report-filter-field">
+          <span>جهت</span>
+          <select value={filters.direction} onChange={update('direction')}>
+            <option value="all">همه</option>
+            <option value="long">لانگ</option>
+            <option value="short">شورت</option>
+          </select>
+        </label>
+        <label className="report-filter-field">
+          <span>نماد</span>
+          <input
+            type="text"
+            placeholder="مثلاً BTC"
+            dir="ltr"
+            value={filters.symbol}
+            onChange={update('symbol')}
+          />
+        </label>
+        <button
+          className="btn-mini"
+          onClick={() => setFilters(DEFAULT_FILTERS)}
+        >
+          پاک کردن فیلترها
+        </button>
+      </div>
+
+      <div className="report-filter-summary">
+        <span>
+          {summary.total} معامله در فیلتر فعلی — {summary.resolved} بسته‌شده — Win Rate:{' '}
+          <strong dir="ltr">{summary.winRate ?? '—'}%</strong>
+        </span>
+        <div className="report-export-buttons">
+          <button className="btn-mini" disabled={!summary.total} onClick={onExportExcel}>
+            خروجی Excel
+          </button>
+          <button className="btn-mini" disabled={!summary.total} onClick={onExportMarkdown}>
+            خروجی Markdown
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPanel() {
   const [unlocked, setUnlocked] = useState(
     sessionStorage.getItem('admin_unlocked') === '1'
@@ -211,6 +392,7 @@ export default function AdminPanel() {
   const [demoTrades, setDemoTrades] = useState([])
   const [stats, setStats] = useState(null)
   const [status, setStatus] = useState('idle')
+  const [filters, setFilters] = useState(DEFAULT_FILTERS)
 
   const tryUnlock = () => {
     if (passInput === ADMIN_PASSCODE) {
@@ -226,7 +408,8 @@ export default function AdminPanel() {
     try {
       const [analysesRes, demoRes, statsRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/history?limit=30`),
-        authFetch(`${API_BASE_URL}/demo-trade/history?limit=50`),
+        // limit بالاتر تا فیلتر بازه‌ی زمانی و خروجی گزارش روی دیتای کامل‌تری کار کنه
+        authFetch(`${API_BASE_URL}/demo-trade/history?limit=1000`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
@@ -244,6 +427,15 @@ export default function AdminPanel() {
   useEffect(() => {
     if (unlocked) loadData()
   }, [unlocked])
+
+  const filteredDemoTrades = useMemo(
+    () => applyFilters(demoTrades, filters),
+    [demoTrades, filters]
+  )
+  const filteredSummary = useMemo(
+    () => computeSummary(filteredDemoTrades),
+    [filteredDemoTrades]
+  )
 
   if (!unlocked) {
     return (
@@ -298,7 +490,18 @@ export default function AdminPanel() {
 
       {status === 'ready' && tab === 'stats' && <StatsPanel stats={stats} />}
       {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
-      {status === 'ready' && tab === 'demo' && <DemoTradesTable rows={demoTrades} />}
+      {status === 'ready' && tab === 'demo' && (
+        <>
+          <FilterBar
+            filters={filters}
+            setFilters={setFilters}
+            summary={filteredSummary}
+            onExportExcel={() => exportToExcel(filteredDemoTrades, filteredSummary)}
+            onExportMarkdown={() => exportToMarkdown(filteredDemoTrades, filteredSummary, filters)}
+          />
+          <DemoTradesTable rows={filteredDemoTrades} />
+        </>
+      )}
     </div>
   )
 }
