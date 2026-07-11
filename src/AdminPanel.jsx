@@ -14,6 +14,12 @@ function fmtTime(iso) {
   }
 }
 
+function modeLabel(mode) {
+  if (mode === 'relaxed') return 'ساده‌گیر'
+  if (mode === 'manual') return 'دستی'
+  return 'سخت‌گیر'
+}
+
 function statusLabel(status) {
   if (status === 'open') return '⏳ باز'
   if (status === 'win') return '✅ برد'
@@ -83,7 +89,7 @@ function DemoTradesTable({ rows }) {
               <td>{fmtTime(r.opened_at)}</td>
               <td>{r.symbol}</td>
               <td>{r.direction === 'long' ? 'لانگ' : 'شورت'}</td>
-              <td>{r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</td>
+              <td>{modeLabel(r.mode)}</td>
               <td dir="ltr">{r.margin_usdt ?? 10}$ / {r.leverage}x</td>
               <td dir="ltr">{r.entry}</td>
               <td dir="ltr">{r.target}</td>
@@ -149,7 +155,7 @@ function StatsPanel({ stats }) {
           <tbody>
             {Object.entries(stats.by_mode || {}).map(([m, v]) => (
               <tr key={m}>
-                <td>{m === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'}</td>
+                <td>{modeLabel(m)}</td>
                 <td dir="ltr">{v.total}</td>
                 <td dir="ltr">{v.wins}</td>
                 <td dir="ltr">{v.win_rate !== null ? `${v.win_rate}%` : '—'}</td>
@@ -249,7 +255,7 @@ function exportToExcel(rows, summary) {
     'زمان بسته شدن': fmtTime(r.closed_at),
     'نماد': r.symbol,
     'جهت': r.direction === 'long' ? 'لانگ' : 'شورت',
-    'حالت': r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر',
+    'حالت': modeLabel(r.mode),
     'مبلغ (USDT)': r.margin_usdt ?? 10,
     'اهرم': r.leverage,
     'ورود': r.entry,
@@ -295,7 +301,7 @@ function exportToMarkdown(rows, summary, filters) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${r.mode === 'relaxed' ? 'ساده‌گیر' : 'سخت‌گیر'} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} |\n`
   })
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
@@ -336,6 +342,7 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
             <option value="all">همه</option>
             <option value="strict">سخت‌گیر</option>
             <option value="relaxed">ساده‌گیر</option>
+            <option value="manual">دستی</option>
           </select>
         </label>
         <label className="report-filter-field">
