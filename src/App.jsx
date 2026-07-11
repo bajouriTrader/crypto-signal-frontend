@@ -1,7 +1,7 @@
 import { authFetch } from './auth'
 import { useState, useRef } from 'react'
 import SignalChart from './SignalChart'
-import AutoSignalList from './AutoSignalList'
+import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -71,6 +71,29 @@ function buildFinalVerdict(finalVerdictData) {
   }
   const decision = score >= 65 ? 'ورود' : score >= 45 ? 'ورود با احتیاط' : 'عدم ورود'
   return { decision, winRate: Math.round(score) }
+}
+
+// ساخت شیء سیگنال با شکل موردنیاز DemoTradePanel/SendToExchangeButton، از
+// روی parsed_signal که بک‌اند برای تحلیل دستی برمی‌گردونه (entries[]/targets[])
+function buildManualDemoSignal(parsedSignal) {
+  if (!parsedSignal?.symbol || !parsedSignal?.direction) return null
+  const entry = Array.isArray(parsedSignal.entries) ? parsedSignal.entries[0] : parsedSignal.entry
+  const target = Array.isArray(parsedSignal.targets) ? parsedSignal.targets[0] : parsedSignal.target
+  const stopLoss = parsedSignal.stop_loss
+  if (entry == null || target == null || stopLoss == null) return null
+
+  return {
+    symbol: parsedSignal.symbol,
+    direction: parsedSignal.direction,
+    entry,
+    target,
+    stop_loss: stopLoss,
+    suggested_leverage: parsedSignal.leverage || 5,
+    // سیگنال‌های وارد‌شده‌ی دستی از کسکید ۶ تایم‌فریمی رد نشدن، پس نه
+    // «سخت‌گیر»ان نه «ساده‌گیر» — به‌همین دلیل به‌عنوان حالت جدا برچسب می‌خورن
+    mode: 'manual',
+    max_hold_hours: 4,
+  }
 }
 
 function ConfluenceMeter({ models, final }) {
@@ -259,6 +282,8 @@ export default function App() {
     setErrorMsg('')
   }
 
+  const manualDemoSignal = buildManualDemoSignal(parsedSignal)
+
   return (
     <div className="app">
       <header className="topbar">
@@ -392,6 +417,13 @@ export default function App() {
                 <div className="ai-summary">
                   <div className="ai-summary-title">جمع‌بندی تحلیلی</div>
                   <p>{aiSummary}</p>
+                </div>
+              )}
+
+              {manualDemoSignal && (
+                <div className="watchlist-actions">
+                  <SendToExchangeButton symbol={manualDemoSignal.symbol} hasSignal={true} />
+                  <DemoTradePanel signal={manualDemoSignal} initialOpenTrade={null} />
                 </div>
               )}
             </section>
