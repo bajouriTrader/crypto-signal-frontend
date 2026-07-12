@@ -438,6 +438,18 @@ export default function App() {
 
       <footer className="footer">
         هیچ خروجی این پلتفرم توصیه مالی نیست — تصمیم ورود همیشه با خودته.
+        <span className="footer-divider"> · </span>
+        <a
+          href="#admin"
+          className="footer-admin-link"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.hash = 'admin'
+            window.location.reload()
+          }}
+        >
+          پنل ادمین و گزارش‌ها
+        </a>
       </footer>
     </div>
   )
