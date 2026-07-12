@@ -533,22 +533,10 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
 
-  // تعداد سیگنال‌هایی که در حالت سخت‌گیر تا نقطه‌ی «تست زنده» پیش رفتن —
-  // از دیتای واقعی demo_trades می‌گیریم (نه یه شمارنده‌ی جدا)، چون این
-  // دقیقاً یعنی «سیگنالی که واقعاً به تست زنده رسیده»
-  const [strictLiveCount, setStrictLiveCount] = useState(null)
-
-  const loadStrictCount = async () => {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/demo-trade/stats`)
-      if (!res.ok) return
-      const data = await res.json()
-      const strict = data?.by_mode?.strict
-      if (strict) setStrictLiveCount(strict.total)
-    } catch {
-      // بی‌صدا نادیده می‌گیریم
-    }
-  }
+  // تعداد سیگنال‌های *همین الان فعال و قابل‌معامله* توی همین لیستی که
+  // پایین نشون داده می‌شه — نه یه آمار تاریخی جدا که ممکنه با چیزی که
+  // کاربر زیرش می‌بینه هم‌خونی نداشته باشه
+  const activeSignalCount = signals.filter((s) => s.signal_available).length
 
   const loadList = async (activeMode) => {
     try {
@@ -578,7 +566,6 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
     setStatus('loading')
     initialLoad()
-    loadStrictCount()
     return () => {
       cancelled = true
       if (pollTimer) clearTimeout(pollTimer)
@@ -587,7 +574,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
   const handleGlobalRefresh = async () => {
     setGlobalRefreshing(true)
-    await Promise.all([loadList(mode), loadStrictCount()])
+    await loadList(mode)
     setGlobalRefreshing(false)
     startGlobalCooldown()
   }
@@ -605,7 +592,9 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
             onChange={() => setMode('strict')}
           />
           سخت‌گیر (دقت بالاتر، سیگنال کمتر)
-          {strictLiveCount !== null && <span dir="ltr"> ({strictLiveCount})</span>}
+          {mode === 'strict' && status === 'ready' && (
+            <span dir="ltr"> ({activeSignalCount} فعال)</span>
+          )}
         </label>
         <label className={`mode-option ${mode === 'relaxed' ? 'mode-option-active' : ''}`}>
           <input
@@ -615,6 +604,9 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
             onChange={() => setMode('relaxed')}
           />
           ساده‌گیر (سیگنال بیشتر، دقت پایین‌تر)
+          {mode === 'relaxed' && status === 'ready' && (
+            <span dir="ltr"> ({activeSignalCount} فعال)</span>
+          )}
         </label>
       </div>
 
