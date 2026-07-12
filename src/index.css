@@ -1452,3 +1452,25 @@ body {
   opacity: 0.6;
   cursor: not-allowed;
 }
+/* ===== لینک پنل ادمین (اضافه‌شده) ===== */
+
+.footer-divider {
+  color: var(--line);
+}
+
+.footer-admin-link,
+.topbar-admin-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--text-muted);
+  transition: color 0.15s;
+}
+
+.footer-admin-link:hover,
+.topbar-admin-link:hover {
+  color: var(--text);
+}
+
+.topbar-admin-link {
+  font-size: 13px;
+}
