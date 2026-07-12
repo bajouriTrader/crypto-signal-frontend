@@ -1260,3 +1260,195 @@ body {
   display: flex;
   gap: 8px;
 }
+/* ===== پنل پوزیشن‌های باز (اضافه‌شده) ===== */
+
+.oppos-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  margin-bottom: 24px;
+}
+
+.oppos-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.oppos-head-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.oppos-count-badge {
+  background: rgba(45, 212, 167, 0.12);
+  color: var(--long);
+  font-size: 11px;
+  font-family: 'JetBrains Mono Variable', monospace;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.oppos-live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.oppos-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--long);
+  box-shadow: 0 0 6px var(--long);
+}
+
+.oppos-error {
+  font-size: 12.5px;
+  color: var(--short);
+  margin-bottom: 8px;
+}
+
+.oppos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.oppos-row {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 0.9fr 1.2fr auto;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+@media (max-width: 680px) {
+  .oppos-row {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "symbol pnl"
+      "price tpsl"
+      "close close";
+    row-gap: 6px;
+  }
+  .oppos-symbol-cell { grid-area: symbol; }
+  .oppos-pnl-cell { grid-area: pnl; }
+  .oppos-price-cell { grid-area: price; }
+  .oppos-tpsl-cell { grid-area: tpsl; }
+  .oppos-close-btn { grid-area: close; }
+}
+
+.oppos-symbol-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.oppos-dir-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.oppos-dir-long {
+  background: rgba(45, 212, 167, 0.12);
+  color: var(--long);
+}
+
+.oppos-dir-short {
+  background: rgba(255, 92, 114, 0.12);
+  color: var(--short);
+}
+
+.oppos-symbol {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.oppos-stale-badge {
+  font-size: 12px;
+}
+
+.oppos-price-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-family: 'JetBrains Mono Variable', monospace;
+}
+
+.oppos-entry-price {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.oppos-current-price {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.oppos-pnl-cell {
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.oppos-pnl-pos {
+  color: var(--long);
+}
+
+.oppos-pnl-neg {
+  color: var(--short);
+}
+
+.oppos-tpsl-cell {
+  display: flex;
+  gap: 8px;
+  font-size: 11px;
+  font-family: 'JetBrains Mono Variable', monospace;
+}
+
+.oppos-tp {
+  color: var(--long);
+}
+
+.oppos-sl {
+  color: var(--short);
+}
+
+.oppos-close-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.oppos-close-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+
+.oppos-close-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
