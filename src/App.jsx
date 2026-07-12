@@ -2,6 +2,7 @@ import { authFetch } from './auth'
 import { useState, useRef } from 'react'
 import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
+import OpenPositionsPanel from './OpenPositionsPanel'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -298,6 +299,8 @@ export default function App() {
       </header>
 
       <main className="main">
+        <OpenPositionsPanel />
+
         <section className="intake">
           <h1 className="intake-title">سیگنال رو بذار روی میز</h1>
           <p className="intake-sub">
