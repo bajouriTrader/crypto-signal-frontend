@@ -533,10 +533,26 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
 
-  // تعداد سیگنال‌های *همین الان فعال و قابل‌معامله* توی همین لیستی که
-  // پایین نشون داده می‌شه — نه یه آمار تاریخی جدا که ممکنه با چیزی که
-  // کاربر زیرش می‌بینه هم‌خونی نداشته باشه
-  const activeSignalCount = signals.filter((s) => s.signal_available).length
+  // تعداد سیگنال‌های *همین الان فعال و قابل‌معامله* برای هر دو حالت —
+  // هر دو رو نگه می‌داریم تا هر دو برچسب (سخت‌گیر/ساده‌گیر) همیشه عدد
+  // نشون بدن، نه فقط حالتی که همون لحظه انتخاب شده
+  const [counts, setCounts] = useState({ strict: null, relaxed: null })
+
+  const loadCounts = async () => {
+    try {
+      const [strictRes, relaxedRes] = await Promise.all([
+        authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=strict`),
+        authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=relaxed`),
+      ])
+      const [strictData, relaxedData] = await Promise.all([strictRes.json(), relaxedRes.json()])
+      setCounts({
+        strict: (strictData.signals || []).filter((s) => s.signal_available).length,
+        relaxed: (relaxedData.signals || []).filter((s) => s.signal_available).length,
+      })
+    } catch {
+      // بی‌صدا نادیده می‌گیریم، دفعه‌ی بعد دوباره تلاش می‌شه
+    }
+  }
 
   const loadList = async (activeMode) => {
     try {
@@ -566,6 +582,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
     setStatus('loading')
     initialLoad()
+    loadCounts()
     return () => {
       cancelled = true
       if (pollTimer) clearTimeout(pollTimer)
@@ -574,12 +591,22 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
   const handleGlobalRefresh = async () => {
     setGlobalRefreshing(true)
-    await loadList(mode)
+    await Promise.all([loadList(mode), loadCounts()])
     setGlobalRefreshing(false)
     startGlobalCooldown()
   }
 
-  const filteredSignals = signals.filter((s) => filter === 'all' || s.direction === filter)
+  const filteredSignals = signals
+    .filter((s) => filter === 'all' || s.direction === filter)
+    .slice()
+    .sort((a, b) => {
+      const aLive = a.open_trade ? 1 : 0
+      const bLive = b.open_trade ? 1 : 0
+      if (aLive !== bLive) return bLive - aLive
+      const aActive = a.signal_available ? 1 : 0
+      const bActive = b.signal_available ? 1 : 0
+      return bActive - aActive
+    })
 
   return (
     <section className="watchlist-panel">
@@ -592,8 +619,8 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
             onChange={() => setMode('strict')}
           />
           سخت‌گیر (دقت بالاتر، سیگنال کمتر)
-          {mode === 'strict' && status === 'ready' && (
-            <span dir="ltr"> ({activeSignalCount} فعال)</span>
+          {counts.strict !== null && (
+            <span dir="ltr"> ({counts.strict} فعال)</span>
           )}
         </label>
         <label className={`mode-option ${mode === 'relaxed' ? 'mode-option-active' : ''}`}>
@@ -604,8 +631,8 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
             onChange={() => setMode('relaxed')}
           />
           ساده‌گیر (سیگنال بیشتر، دقت پایین‌تر)
-          {mode === 'relaxed' && status === 'ready' && (
-            <span dir="ltr"> ({activeSignalCount} فعال)</span>
+          {counts.relaxed !== null && (
+            <span dir="ltr"> ({counts.relaxed} فعال)</span>
           )}
         </label>
       </div>
