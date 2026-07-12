@@ -311,6 +311,11 @@ export default function App() {
       </header>
 
       <main className="main">
+        <AutoSignalList
+          onFullAnalyze={handleAutoAnalyze}
+          isAnalyzing={status === 'analyzing'}
+        />
+
         <OpenPositionsPanel />
 
         <section className="intake">
@@ -391,11 +396,6 @@ export default function App() {
 
           {errorMsg && <p className="error-note">{errorMsg}</p>}
         </section>
-
-        <AutoSignalList
-          onFullAnalyze={handleAutoAnalyze}
-          isAnalyzing={status === 'analyzing'}
-        />
 
         {status === 'analyzing' && (
           <div className="analyzing-banner">
