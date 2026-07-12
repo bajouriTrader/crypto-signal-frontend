@@ -235,7 +235,7 @@ export default function App() {
     }
   }
 
-  const handleAutoAnalyze = async (symbol) => {
+  const handleAutoAnalyze = async (symbol, signalMode = 'relaxed') => {
     setErrorMsg('')
     setStatus('analyzing')
     setMode('text')
@@ -244,7 +244,7 @@ export default function App() {
       const res = await authFetch(`${API_BASE_URL}/auto-signal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
+        body: JSON.stringify({ symbol, mode: signalMode }),
       })
 
       if (!res.ok) {
