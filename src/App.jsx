@@ -295,6 +295,18 @@ export default function App() {
         <div className="topbar-status">
           <span className="dot" />
           <span>۴ مدل هوش مصنوعی آماده تحلیل</span>
+          <span className="footer-divider"> · </span>
+          <a
+            href="#admin"
+            className="topbar-admin-link"
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.hash = 'admin'
+              window.location.reload()
+            }}
+          >
+            پنل ادمین و گزارش‌ها
+          </a>
         </div>
       </header>
 
