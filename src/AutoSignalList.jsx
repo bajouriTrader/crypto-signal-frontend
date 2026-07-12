@@ -513,7 +513,7 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
         <button
           className="btn-mini btn-mini-primary"
           disabled={isAnalyzing}
-          onClick={() => onFullAnalyze(rowData.symbol)}
+          onClick={() => onFullAnalyze(rowData.symbol, mode)}
         >
           {isAnalyzing ? 'در حال تحلیل…' : 'تحلیل کامل'}
         </button>
