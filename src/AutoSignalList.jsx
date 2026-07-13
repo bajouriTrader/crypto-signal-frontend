@@ -185,19 +185,46 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
   }
 
   const startDemo = async () => {
+    let live = signal
+
+    // فقط برای سیگنال‌های واچ‌لیست (نه ورود دستی) قبل از باز کردن پوزیشن،
+    // یه رفرش زنده می‌گیریم تا با مقادیر قدیمی/منقضی پوزیشن باز نشه
+    if (signal.mode === 'strict' || signal.mode === 'relaxed') {
+      setStatus('starting')
+      try {
+        const refreshRes = await authFetch(`${API_BASE_URL}/refresh-signal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ symbol: signal.symbol, mode: signal.mode }),
+        })
+        if (refreshRes.ok) {
+          const fresh = await refreshRes.json()
+          if (!fresh.signal_available) {
+            setStatus('error')
+            return
+          }
+          live = fresh
+        }
+        // اگه ۴۲۹ (کول‌داون اخیر) بود، یعنی دیتای فعلی همین چند ثانیه پیش
+        // تازه بوده — همون signal فعلی رو معتبر در نظر می‌گیریم و ادامه می‌دیم
+      } catch {
+        // خطای شبکه‌ی موقت در رفرش — با آخرین دیتای موجود ادامه می‌دیم
+      }
+    }
+
     setStatus('starting')
     try {
       const res = await authFetch(`${API_BASE_URL}/demo-trade/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: signal.symbol,
-          direction: signal.direction,
-          entry: signal.entry,
-          target: signal.target,
-          stop_loss: signal.stop_loss,
+          symbol: live.symbol,
+          direction: live.direction,
+          entry: live.entry,
+          target: live.target,
+          stop_loss: live.stop_loss,
           leverage: parseFloat(leverageInput) || 5,
-          mode: signal.mode || 'strict',
+          mode: live.mode || signal.mode || 'strict',
           margin_usdt: parseFloat(marginInput) || 10,
         }),
       })
@@ -425,22 +452,46 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
 function WatchTickerRow({ signal }) {
   const hasSignal = signal.direction && signal.entry !== null && signal.entry !== undefined
   const canQuickStart = signal.signal_available && !signal.open_trade
-  const [quickStatus, setQuickStatus] = useState('idle') // 'idle' | 'starting' | 'started' | 'error'
+  const [quickStatus, setQuickStatus] = useState('idle') // 'idle' | 'checking' | 'starting' | 'started' | 'expired' | 'error'
 
   const handleQuickStart = async () => {
-    setQuickStatus('starting')
+    setQuickStatus('checking')
     try {
+      // اول یه رفرش فوری و واقعی از بازار می‌گیریم — هیچ‌وقت با مقادیر
+      // کش‌شده (که ممکنه چند دقیقه/ساعت قدیمی باشن) پوزیشن باز نمی‌کنیم
+      const refreshRes = await authFetch(`${API_BASE_URL}/refresh-signal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol: signal.symbol, mode: signal.mode }),
+      })
+
+      if (refreshRes.status === 429) {
+        // اخیراً رفرش شده (کول‌داون) — یعنی دیتای فعلی همین چند ثانیه پیش تازه بوده، همونو معتبر می‌دونیم
+      } else if (!refreshRes.ok) {
+        setQuickStatus('error')
+        return
+      }
+
+      const fresh = refreshRes.ok ? await refreshRes.json() : signal
+
+      if (!fresh.signal_available) {
+        // بعد از چک زنده، دیگه سیگنال معتبر نیست — روند/تریگر عوض شده
+        setQuickStatus('expired')
+        return
+      }
+
+      setQuickStatus('starting')
       const res = await authFetch(`${API_BASE_URL}/demo-trade/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          symbol: signal.symbol,
-          direction: signal.direction,
-          entry: signal.entry,
-          target: signal.target,
-          stop_loss: signal.stop_loss,
-          leverage: signal.suggested_leverage || 5,
-          mode: signal.mode || 'strict',
+          symbol: fresh.symbol,
+          direction: fresh.direction,
+          entry: fresh.entry,
+          target: fresh.target,
+          stop_loss: fresh.stop_loss,
+          leverage: fresh.suggested_leverage || 5,
+          mode: fresh.mode || signal.mode || 'strict',
           margin_usdt: 10,
         }),
       })
@@ -466,13 +517,15 @@ function WatchTickerRow({ signal }) {
         <span className="ticker-pending">در انتظار تریگر</span>
       )}
 
-      {canQuickStart && quickStatus === 'idle' && (
+      {canQuickStart && (quickStatus === 'idle' || quickStatus === 'expired' || quickStatus === 'error') && (
         <button className="ticker-quickstart-btn" onClick={handleQuickStart}>
           شروع تست زنده (۱۰$)
         </button>
       )}
+      {quickStatus === 'checking' && <span className="ticker-pending">در حال بررسی زنده‌ی بازار…</span>}
       {quickStatus === 'starting' && <span className="ticker-pending">در حال شروع…</span>}
       {quickStatus === 'started' && <span className="ticker-live-badge">شروع شد ✅</span>}
+      {quickStatus === 'expired' && <span className="ticker-pending">سیگنال قبلی منقضی شده بود — دوباره امتحان کن</span>}
       {quickStatus === 'error' && <span className="ticker-pending">خطا، دوباره امتحان کن</span>}
 
       <span className="ticker-time">{timeAgo(signal.last_updated)}</span>
