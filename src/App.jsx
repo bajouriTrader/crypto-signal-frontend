@@ -311,12 +311,12 @@ export default function App() {
       </header>
 
       <main className="main">
+        <OpenPositionsPanel />
+
         <AutoSignalList
           onFullAnalyze={handleAutoAnalyze}
           isAnalyzing={status === 'analyzing'}
         />
-
-        <OpenPositionsPanel />
 
         <section className="intake">
           <h1 className="intake-title">سیگنال رو بذار روی میز</h1>
