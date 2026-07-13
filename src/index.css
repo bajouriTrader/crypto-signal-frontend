@@ -1542,3 +1542,21 @@ body {
 .ready-signals-head .watchlist-title {
   margin-bottom: 4px;
 }
+/* ===== دکمه‌ی شروع سریع تست زنده در واچ‌لیست فشرده (اضافه‌شده) ===== */
+
+.ticker-quickstart-btn {
+  background: rgba(45, 212, 167, 0.12);
+  border: 1px solid rgba(45, 212, 167, 0.3);
+  color: var(--long);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.ticker-quickstart-btn:hover {
+  background: rgba(45, 212, 167, 0.2);
+}
