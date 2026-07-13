@@ -1,733 +1,468 @@
 import { authFetch } from './auth'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useState, useRef } from 'react'
 import SignalChart from './SignalChart'
+import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
+import OpenPositionsPanel from './OpenPositionsPanel'
 
+// آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
-const GLOBAL_REFRESH_COOLDOWN = 30
-const ROW_REFRESH_COOLDOWN = 30
 
-function scoreLevel(score) {
-  if (score >= 70) return 'score-high'
-  if (score >= 45) return 'score-mid'
-  return 'score-low'
+// اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
+// فنی مثل "github" یا "groq" برمی‌گردونه
+const PROVIDER_META = {
+  github: { name: 'GPT-4o', provider: 'GitHub Models', accent: '#2DD4A7' },
+  groq: { name: 'Llama 3.3 70B', provider: 'Groq', accent: '#E8A94A' },
+  gemini: { name: 'Gemini', provider: 'Google AI Studio', accent: '#2DD4A7' },
+  deepseek: { name: 'DeepSeek', provider: 'DeepSeek Platform', accent: '#FF5C72' },
 }
 
-function modeLabel(mode) {
-  if (mode === 'relaxed') return 'ساده‌گیر'
-  if (mode === 'manual') return 'دستی'
-  return 'سخت‌گیر'
+const METHOD_LABELS = {
+  ict: 'ICT',
+  smc: 'SMC',
+  liquidity_sweep: 'Liquidity Sweep',
+  vwap: 'VWAP',
 }
 
-function timeAgo(epochSeconds) {
-  if (!epochSeconds) return ''
-  const diff = Math.max(0, Date.now() / 1000 - epochSeconds)
-  if (diff < 90) return 'همین الان'
-  const minutes = Math.round(diff / 60)
-  if (minutes < 60) return `${minutes} دقیقه پیش`
-  const hours = Math.round(minutes / 60)
-  return `${hours} ساعت پیش`
-}
+// تبدیل پاسخ خام بک‌اند به ساختاری که کامپوننت‌های نمایشی انتظار دارن
+function mapModelResults(modelResults) {
+  return Object.entries(PROVIDER_META).map(([key, meta]) => {
+    const methodsData = modelResults?.[key] || {}
 
-function useCountdown(seconds) {
-  const [remaining, setRemaining] = useState(0)
-  const timerRef = useRef(null)
-
-  const start = () => {
-    setRemaining(seconds)
-    clearInterval(timerRef.current)
-    timerRef.current = setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          clearInterval(timerRef.current)
-          return 0
-        }
-        return r - 1
-      })
-    }, 1000)
-  }
-
-  useEffect(() => () => clearInterval(timerRef.current), [])
-  return [remaining, start]
-}
-
-// ---------------------------------------------------------------------------
-// دکمه‌ی «ارسال به صرافی» — جدا شده تا هم توی کارت واچ‌لیست خودکار، هم زیر
-// نتیجه‌ی تحلیل دستی (App.jsx) قابل استفاده باشه بدون تکرار کد
-// ---------------------------------------------------------------------------
-export function SendToExchangeButton({ symbol, hasSignal, className = 'btn-mini' }) {
-  const [liveExchangeStatus, setLiveExchangeStatus] = useState(null)
-
-  const handleSendToExchange = async () => {
-    setLiveExchangeStatus('sending')
-    try {
-      const res = await authFetch(`${API_BASE_URL}/send-to-exchange-live`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol }),
-      })
-      const data = await res.json()
-      setLiveExchangeStatus(data.status === 'coming_soon' ? 'soon' : 'sent')
-    } catch {
-      setLiveExchangeStatus('error')
-    } finally {
-      setTimeout(() => setLiveExchangeStatus(null), 4000)
-    }
-  }
-
-  return (
-    <button
-      className={className}
-      disabled={liveExchangeStatus === 'sending' || !hasSignal}
-      onClick={handleSendToExchange}
-    >
-      {liveExchangeStatus === 'soon'
-        ? 'به‌زودی 🚧'
-        : liveExchangeStatus === 'sending'
-        ? 'در حال ارسال…'
-        : liveExchangeStatus === 'sent'
-        ? 'ارسال شد ✅'
-        : liveExchangeStatus === 'error'
-        ? 'خطا در ارسال'
-        : 'ارسال به صرافی (حساب ریل)'}
-    </button>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// پنل تست زنده (Paper Trade) — از App.jsx (تحلیل دستی) هم export و استفاده می‌شه
-// ---------------------------------------------------------------------------
-export function DemoTradePanel({ signal, initialOpenTrade }) {
-  const [status, setStatus] = useState('idle') // 'idle'|'configuring'|'starting'|'open'|'win'|'loss'|'timeout_win'|'timeout_loss'|'manual_win'|'manual_loss'|'closing'|'error'
-  const [trade, setTrade] = useState(null)
-  const [open, setOpen] = useState(false)
-  const [elapsed, setElapsed] = useState(0)
-  const [livePrice, setLivePrice] = useState(null)
-  const [marginInput, setMarginInput] = useState('10')
-  const [leverageInput, setLeverageInput] = useState(String(signal.suggested_leverage || 5))
-  const pollRef = useRef(null)
-  const elapsedTimerRef = useRef(null)
-  const livePriceTimerRef = useRef(null)
-
-  const stopTimers = () => {
-    clearInterval(pollRef.current)
-    clearInterval(elapsedTimerRef.current)
-    clearInterval(livePriceTimerRef.current)
-  }
-
-  const startElapsedFrom = (openedAtSeconds) => {
-    const startingElapsed = Math.max(0, Math.floor(Date.now() / 1000 - openedAtSeconds))
-    setElapsed(startingElapsed)
-    elapsedTimerRef.current = setInterval(() => setElapsed((e) => e + 1), 1000)
-  }
-
-  // تایمر سبک و سریع (هر ۸ ثانیه) فقط برای قیمت لحظه‌ای — جدا از poll سنگین‌تر
-  // وضعیت (که هر ۱۵ ثانیه‌ست و کندل چک می‌کنه)، تا سود/زیان واقعاً «زنده»‌تر باشه
-  const [priceRefreshing, setPriceRefreshing] = useState(false)
-
-  const fetchLivePriceNow = async (symbol, showSpinner = false) => {
-    if (showSpinner) setPriceRefreshing(true)
-    try {
-      const res = await authFetch(`${API_BASE_URL}/live-price/${symbol}`)
-      if (res.ok) {
-        const data = await res.json()
-        if (typeof data.price === 'number') setLivePrice(data.price)
-      }
-    } catch {
-      // خطای موقت رو نادیده می‌گیریم
-    } finally {
-      if (showSpinner) setPriceRefreshing(false)
-    }
-  }
-
-  const startLivePriceTicker = (symbol) => {
-    fetchLivePriceNow(symbol)
-    livePriceTimerRef.current = setInterval(() => fetchLivePriceNow(symbol), 8000)
-  }
-
-  // بازیابی خودکار: اگه از بک‌اند معلوم شد این ارز از قبل پوزیشن باز داره،
-  // به‌جای خالی نشون دادن پنل، همون رو بازسازی می‌کنیم (حتی بعد از رفرش صفحه)
-  useEffect(() => {
-    if (initialOpenTrade && !trade) {
-      setTrade(initialOpenTrade)
-      setStatus(initialOpenTrade.status)
-      setOpen(true)
-      if (initialOpenTrade.status === 'open') {
-        startElapsedFrom(initialOpenTrade.opened_at)
-        pollRef.current = setInterval(() => pollStatus(initialOpenTrade.trade_id), 15000)
-        startLivePriceTicker(initialOpenTrade.symbol)
-      } else if (initialOpenTrade.closed_at) {
-        // نتیجه‌ی تازه‌بسته‌شده — دیگه نیازی به تایمر زنده نیست، فقط مدت‌زمان نهایی رو نشون بده
-        setElapsed(Math.max(0, Math.floor(initialOpenTrade.closed_at - initialOpenTrade.opened_at)))
-      }
-    }
-    return () => stopTimers()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialOpenTrade?.trade_id, initialOpenTrade?.status])
-
-  const pollStatus = async (tradeId) => {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/demo-trade/status/${tradeId}`)
-      const data = await res.json()
-      if (!res.ok) throw new Error('trade not found')
-      setTrade(data)
-      if (data.status !== 'open') {
-        setStatus(data.status)
-        clearInterval(pollRef.current)
-        clearInterval(elapsedTimerRef.current)
-        clearInterval(livePriceTimerRef.current)
-        if (data.closed_at) {
-          setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
-        }
-      }
-    } catch {
-      // موقتاً نادیده می‌گیریم، سیکل بعدی دوباره امتحان می‌کنه
-    }
-  }
-
-  const startDemo = async () => {
-    setStatus('starting')
-    try {
-      const res = await authFetch(`${API_BASE_URL}/demo-trade/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          symbol: signal.symbol,
-          direction: signal.direction,
-          entry: signal.entry,
-          target: signal.target,
-          stop_loss: signal.stop_loss,
-          leverage: parseFloat(leverageInput) || 5,
-          mode: signal.mode || 'strict',
-          margin_usdt: parseFloat(marginInput) || 10,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) throw new Error('شروع تست زنده ناموفق بود')
-      setTrade(data)
-      setStatus(data.status)
-      startElapsedFrom(data.opened_at)
-      if (data.status === 'open') {
-        pollRef.current = setInterval(() => pollStatus(data.trade_id), 15000)
-        startLivePriceTicker(data.symbol)
-      }
-    } catch {
-      setStatus('error')
-    }
-  }
-
-  const closeManually = async () => {
-    if (!trade) return
-    setStatus('closing')
-    try {
-      const res = await authFetch(`${API_BASE_URL}/demo-trade/close/${trade.trade_id}`, { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error('بستن پوزیشن ناموفق بود')
-      setTrade(data)
-      setStatus(data.status)
-      clearInterval(pollRef.current)
-      clearInterval(elapsedTimerRef.current)
-      clearInterval(livePriceTimerRef.current)
-      if (data.closed_at) {
-        setElapsed(Math.max(0, Math.floor(data.closed_at - data.opened_at)))
-      }
-    } catch {
-      setStatus('open') // برگردون به حالت باز، کاربر می‌تونه دوباره امتحان کنه
-    }
-  }
-
-  const formatDuration = (sec) => {
-    const h = Math.floor(sec / 3600)
-    const m = Math.floor((sec % 3600) / 60)
-    if (h > 0) return `${h} ساعت و ${m} دقیقه`
-    return `${m} دقیقه و ${sec % 60} ثانیه`
-  }
-
-  const isResolved = ['win', 'loss', 'timeout_win', 'timeout_loss', 'manual_win', 'manual_loss'].includes(status)
-  const isWin = status === 'win' || status === 'timeout_win' || status === 'manual_win'
-  const isTimeout = status === 'timeout_win' || status === 'timeout_loss'
-  const isManual = status === 'manual_win' || status === 'manual_loss'
-
-  // فقط وقتی مقادیر واقعی معامله عوض بشه بازسازی می‌شه، نه هر ثانیه با تیک شمارنده
-  const chartSignal = useMemo(() => {
-    if (!trade) return null
-    return {
-      symbol: trade.symbol,
-      direction: trade.direction,
-      entries: [trade.entry],
-      targets: [trade.target],
-      stop_loss: trade.stop_loss,
-    }
-  }, [trade?.symbol, trade?.direction, trade?.entry, trade?.target, trade?.stop_loss])
-
-  const handleMainClick = () => {
-    if (isResolved) {
-      setOpen(true)
-      return
-    }
-    setOpen(true)
-    setStatus('configuring')
-  }
-
-  const renderLiveStatus = (key) => {
-    if (status !== 'open' || !trade) return null
-    const price = livePrice ?? trade.current_price
-    return (
-      <div className="backtest-status" key={key}>
-        ⏳ پوزیشن دمو باز است ({trade.margin_usdt}$ با اهرم {trade.leverage}x) — رصد زنده قیمت
-        (حداکثر تا {signal.max_hold_hours || 4} ساعت تکلیفش مشخص می‌شه)
-        {price && (() => {
-          const qty = trade.quantity || 0
-          const unrealizedPnl =
-            trade.direction === 'long'
-              ? qty * (price - trade.entry)
-              : qty * (trade.entry - price)
-          return (
-            <>
-              <div className="demo-price-row">
-                <span className="demo-row-label">قیمت لحظه‌ای:</span>
-                <span dir="ltr" className="demo-current-price">{price}</span>
-              </div>
-              <div className="demo-price-row">
-                <span className="demo-row-label">سود/زیان لحظه‌ای:</span>
-                <span
-                  dir="ltr"
-                  className={`demo-unrealized-pnl ${unrealizedPnl >= 0 ? 'detail-target' : 'detail-stop'}`}
-                >
-                  {unrealizedPnl >= 0 ? '+' : ''}
-                  {unrealizedPnl.toFixed(4)}$
-                </span>
-                <button
-                  className="pnl-refresh-btn"
-                  onClick={() => fetchLivePriceNow(trade.symbol, true)}
-                  disabled={priceRefreshing}
-                  title="رفرش دستی قیمت و سود/زیان"
-                >
-                  {priceRefreshing ? '…' : '↻'}
-                </button>
-              </div>
-            </>
-          )
-        })()}
-        <button className="btn-mini demo-manual-close" onClick={closeManually}>
-          بستن دستی پوزیشن
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <>
-      <button
-        className="btn-mini"
-        onClick={handleMainClick}
-        disabled={status === 'starting' || status === 'open' || status === 'closing'}
-      >
-        {status === 'open'
-          ? `در حال رصد… ${elapsed}s`
-          : status === 'starting'
-          ? 'در حال شروع…'
-          : status === 'closing'
-          ? 'در حال بستن…'
-          : isResolved
-          ? 'مشاهده‌ی نتیجه'
-          : 'تست زنده سیگنال'}
-      </button>
-
-      {open && (
-        <div className="backtest-panel">
-          {status === 'configuring' && (
-            <div className="demo-config-form">
-              <div className="demo-config-row">
-                <label>مبلغ ورودی (USDT)</label>
-                <input
-                  type="number"
-                  value={marginInput}
-                  onChange={(e) => setMarginInput(e.target.value)}
-                  className="demo-config-input"
-                  dir="ltr"
-                />
-              </div>
-              <div className="demo-config-row">
-                <label>اهرم</label>
-                <div className="demo-config-input-wrap">
-                  <input
-                    type="number"
-                    value={leverageInput}
-                    onChange={(e) => setLeverageInput(e.target.value)}
-                    className="demo-config-input"
-                    dir="ltr"
-                  />
-                  <span className="demo-config-suffix">x</span>
-                </div>
-              </div>
-              <button className="btn-mini btn-mini-primary" onClick={startDemo}>
-                شروع پوزیشن دمو
-              </button>
-            </div>
-          )}
-
-          {status === 'starting' && (
-            <div className="backtest-status">در حال باز کردن پوزیشن دمو…</div>
-          )}
-          {status === 'error' && (
-            <div className="backtest-status">شروع تست زنده ناموفق بود، دوباره امتحان کن.</div>
-          )}
-          {status === 'open' && renderLiveStatus('top')}
-
-          {trade && (status === 'open' || isResolved) && (
-            <SignalChart parsedSignal={chartSignal} interval="5m" />
-          )}
-
-          {status === 'open' && renderLiveStatus('bottom')}
-
-          {isResolved && trade && (
-            <>
-              <div className={`demo-result-badge ${isWin ? 'demo-win' : 'demo-loss'}`}>
-                {isWin ? '✅ به سود رسید' : '❌ به ضرر رسید'}
-                {isTimeout && ' (پایان بازه‌ی ۴ ساعته)'}
-                {isManual && ' (بستن دستی)'}
-              </div>
-              <div className="backtest-grid">
-                <div>
-                  <span className="detail-label">حالت</span>
-                  <div className="detail-value">{modeLabel(trade.mode)}</div>
-                </div>
-                <div>
-                  <span className="detail-label">ورود</span>
-                  <div dir="ltr" className="detail-value">{trade.entry}</div>
-                </div>
-                <div>
-                  <span className="detail-label">خروج</span>
-                  <div dir="ltr" className="detail-value">{trade.exit_price}</div>
-                </div>
-                <div>
-                  <span className="detail-label">سود/زیان</span>
-                  <div dir="ltr" className={`detail-value ${trade.realized_pnl >= 0 ? 'detail-target' : 'detail-stop'}`}>
-                    {trade.realized_pnl >= 0 ? '+' : ''}{trade.realized_pnl}$
-                  </div>
-                </div>
-                <div>
-                  <span className="detail-label">مدت زمان</span>
-                  <div className="detail-value">{formatDuration(elapsed)}</div>
-                </div>
-              </div>
-            </>
-          )}
-          <button className="btn-mini backtest-close" onClick={() => { stopTimers(); setOpen(false) }}>
-            بستن
-          </button>
-        </div>
-      )}
-    </>
-  )
-}
-
-function WatchTickerRow({ signal }) {
-  const hasSignal = signal.direction && signal.entry !== null && signal.entry !== undefined
-  return (
-    <div className="ticker-row">
-      <span className="ticker-symbol">{signal.symbol}</span>
-      {signal.direction && (
-        <span className={`ticker-direction ${signal.direction === 'long' ? 'dir-long' : 'dir-short'}`}>
-          {signal.direction === 'long' ? 'لانگ' : 'شورت'}
-        </span>
-      )}
-      <span className={`ticker-score ${scoreLevel(signal.confluence_score)}`} dir="ltr">
-        {signal.confluence_score}%
-      </span>
-      {signal.open_trade && <span className="ticker-live-badge">در تست زنده</span>}
-      {hasSignal && !signal.signal_available && (
-        <span className="ticker-pending">در انتظار تریگر</span>
-      )}
-      <span className="ticker-time">{timeAgo(signal.last_updated)}</span>
-    </div>
-  )
-}
-
-function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
-  const [remaining, startCooldown] = useCountdown(ROW_REFRESH_COOLDOWN)
-  const [refreshing, setRefreshing] = useState(false)
-  const [rowData, setRowData] = useState(signal)
-
-  useEffect(() => setRowData(signal), [signal])
-
-  const handleRowRefresh = async () => {
-    setRefreshing(true)
-    try {
-      const res = await authFetch(`${API_BASE_URL}/refresh-signal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ symbol: rowData.symbol, mode }),
-      })
-      const data = await res.json()
-      if (res.ok) {
-        setRowData(data)
-        startCooldown()
-      }
-    } catch {
-      // بی‌صدا نادیده می‌گیریم، کاربر می‌تونه دوباره امتحان کنه
-    } finally {
-      setRefreshing(false)
-    }
-  }
-
-  const hasSignal = rowData.direction && rowData.entry !== null && rowData.entry !== undefined
-  const isTriggered = rowData.signal_available
-
-  return (
-    <div className="watchlist-card">
-      <div className="watchlist-card-top">
-        <span className="watchlist-rank">{index + 1}</span>
-        <span className="watchlist-symbol">{rowData.symbol}</span>
-        {rowData.direction && (
-          <span className={`watchlist-direction ${rowData.direction === 'long' ? 'dir-long' : 'dir-short'}`}>
-            {rowData.direction === 'long' ? 'لانگ' : 'شورت'}
-          </span>
-        )}
-        <span className={`watchlist-score-badge ${scoreLevel(rowData.confluence_score)}`}>
-          {rowData.confluence_score}%
-        </span>
-        {hasSignal && !isTriggered && (
-          <span className="watchlist-pending-badge">در انتظار تریگر ۱۵m/۵m</span>
-        )}
-        {rowData.open_trade?.stale_warning && (
-          <span className="watchlist-stale-badge">⚠️ بیش از {rowData.max_hold_hours || 4} ساعته بازه</span>
-        )}
-        <span className="watchlist-time">{timeAgo(rowData.last_updated)}</span>
-        <button
-          className="row-refresh-btn"
-          onClick={handleRowRefresh}
-          disabled={refreshing || remaining > 0}
-          title="رفرش این ارز"
-        >
-          {refreshing ? '…' : remaining > 0 ? `${remaining}s` : '↻'}
-        </button>
-      </div>
-
-      {!hasSignal && (
-        <div className="watchlist-no-signal">
-          {(rowData.reasons || []).join(' — ') || 'روند تایم‌فریم‌های مختلف هم‌جهت نیست، سیگنالی صادر نشده.'}
-        </div>
-      )}
-
-      {hasSignal && (
-        <div className="watchlist-details">
-          <div className="watchlist-detail-item">
-            <span className="detail-label">ورود</span>
-            <span dir="ltr" className="detail-value">{rowData.entry}</span>
-          </div>
-          <div className="watchlist-detail-item">
-            <span className="detail-label">هدف</span>
-            <span dir="ltr" className="detail-value detail-target">{rowData.target}</span>
-          </div>
-          <div className="watchlist-detail-item">
-            <span className="detail-label">حد ضرر</span>
-            <span dir="ltr" className="detail-value detail-stop">{rowData.stop_loss}</span>
-          </div>
-          <div className="watchlist-detail-item">
-            <span className="detail-label">اهرم</span>
-            <span dir="ltr" className="detail-value">{rowData.suggested_leverage}x</span>
-          </div>
-        </div>
-      )}
-
-      <div className="watchlist-actions">
-        <button
-          className="btn-mini btn-mini-primary"
-          disabled={isAnalyzing}
-          onClick={() => onFullAnalyze(rowData.symbol, mode)}
-        >
-          {isAnalyzing ? 'در حال تحلیل…' : 'تحلیل کامل'}
-        </button>
-        <SendToExchangeButton symbol={rowData.symbol} hasSignal={hasSignal} />
-        {hasSignal && <DemoTradePanel signal={rowData} initialOpenTrade={rowData.open_trade} />}
-      </div>
-    </div>
-  )
-}
-
-export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
-  const [signals, setSignals] = useState([])
-  const [status, setStatus] = useState('loading')
-  const [isPartial, setIsPartial] = useState(false)
-  const [filter, setFilter] = useState('all')
-  const [mode, setMode] = useState('relaxed') // 'strict' | 'relaxed'
-  const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
-  const [globalRefreshing, setGlobalRefreshing] = useState(false)
-
-  // تعداد سیگنال‌های *همین الان فعال و قابل‌معامله* برای هر دو حالت —
-  // هر دو رو نگه می‌داریم تا هر دو برچسب (سخت‌گیر/ساده‌گیر) همیشه عدد
-  // نشون بدن، نه فقط حالتی که همون لحظه انتخاب شده
-  const [counts, setCounts] = useState({ strict: null, relaxed: null })
-
-  const loadCounts = async () => {
-    try {
-      const [strictRes, relaxedRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=strict`),
-        authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=relaxed`),
-      ])
-      const [strictData, relaxedData] = await Promise.all([strictRes.json(), relaxedRes.json()])
-      setCounts({
-        strict: (strictData.signals || []).filter((s) => s.signal_available).length,
-        relaxed: (relaxedData.signals || []).filter((s) => s.signal_available).length,
-      })
-    } catch {
-      // بی‌صدا نادیده می‌گیریم، دفعه‌ی بعد دوباره تلاش می‌شه
-    }
-  }
-
-  const loadList = async (activeMode) => {
-    try {
-      const res = await authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=${activeMode}`)
-      if (!res.ok) throw new Error('خطا در دریافت لیست')
-      const data = await res.json()
-      setSignals(data.signals || [])
-      setStatus('ready')
-      setIsPartial((data.count || 0) < (data.total_watchlist_size || 20))
-      return data
-    } catch {
-      setStatus('error')
-      return null
-    }
-  }
-
-  useEffect(() => {
-    let cancelled = false
-    let pollTimer = null
-
-    async function initialLoad() {
-      const data = await loadList(mode)
-      if (!cancelled && data && (data.count || 0) < (data.total_watchlist_size || 20)) {
-        pollTimer = setTimeout(initialLoad, 15000)
-      }
-    }
-
-    setStatus('loading')
-    initialLoad()
-    loadCounts()
-    return () => {
-      cancelled = true
-      if (pollTimer) clearTimeout(pollTimer)
-    }
-  }, [mode])
-
-  const handleGlobalRefresh = async () => {
-    setGlobalRefreshing(true)
-    await Promise.all([loadList(mode), loadCounts()])
-    setGlobalRefreshing(false)
-    startGlobalCooldown()
-  }
-
-  const filteredSignals = signals
-    .filter((s) => filter === 'all' || s.direction === filter)
-    .slice()
-    .sort((a, b) => {
-      const aLive = a.open_trade ? 1 : 0
-      const bLive = b.open_trade ? 1 : 0
-      if (aLive !== bLive) return bLive - aLive
-      const aActive = a.signal_available ? 1 : 0
-      const bActive = b.signal_available ? 1 : 0
-      return bActive - aActive
+    const methods = Object.entries(METHOD_LABELS).map(([mKey, mLabel]) => {
+      const r = methodsData[mKey]
+      const hasScore = r && typeof r.quality_score === 'number'
+      return { name: mLabel, score: hasScore ? r.quality_score : null }
     })
 
-  const readySignals = filteredSignals.filter((s) => s.signal_available)
+    const validScores = methods
+      .map((m) => m.score)
+      .filter((s) => typeof s === 'number')
+
+    const winRate = validScores.length
+      ? Math.round(validScores.reduce((a, b) => a + b, 0) / validScores.length)
+      : null
+
+    let verdict = 'داده ناقص'
+    if (winRate !== null) {
+      verdict = winRate >= 65 ? 'ورود' : winRate >= 45 ? 'محتاطانه' : 'عدم ورود'
+    }
+
+    const firstSuccess = Object.values(methodsData).find((r) => r?.reasoning)
+    const note = firstSuccess
+      ? firstSuccess.reasoning
+      : 'این مدل برای این سیگنال پاسخ معتبری برنگردوند (خطای موقت سرویس یا محدودیت سهمیه).'
+
+    return {
+      id: key,
+      name: meta.name,
+      provider: meta.provider,
+      accent: meta.accent,
+      verdict,
+      winRate: winRate ?? 0,
+      methods: methods.map((m) => ({ name: m.name, score: m.score ?? 0 })),
+      note,
+    }
+  })
+}
+
+function buildFinalVerdict(finalVerdictData) {
+  const score = finalVerdictData?.signal_quality_score
+  if (score === null || score === undefined) {
+    return { decision: 'داده کافی برای جمع‌بندی نیست', winRate: 0 }
+  }
+  const decision = score >= 65 ? 'ورود' : score >= 45 ? 'ورود با احتیاط' : 'عدم ورود'
+  return { decision, winRate: Math.round(score) }
+}
+
+// ساخت شیء سیگنال با شکل موردنیاز DemoTradePanel/SendToExchangeButton، از
+// روی parsed_signal که بک‌اند برای تحلیل دستی برمی‌گردونه (entries[]/targets[])
+function buildManualDemoSignal(parsedSignal) {
+  if (!parsedSignal?.symbol || !parsedSignal?.direction) return null
+  const entry = Array.isArray(parsedSignal.entries) ? parsedSignal.entries[0] : parsedSignal.entry
+  const target = Array.isArray(parsedSignal.targets) ? parsedSignal.targets[0] : parsedSignal.target
+  const stopLoss = parsedSignal.stop_loss
+  if (entry == null || target == null || stopLoss == null) return null
+
+  return {
+    symbol: parsedSignal.symbol,
+    direction: parsedSignal.direction,
+    entry,
+    target,
+    stop_loss: stopLoss,
+    suggested_leverage: parsedSignal.leverage || 5,
+    // سیگنال‌های وارد‌شده‌ی دستی از کسکید ۶ تایم‌فریمی رد نشدن، پس نه
+    // «سخت‌گیر»ان نه «ساده‌گیر» — به‌همین دلیل به‌عنوان حالت جدا برچسب می‌خورن
+    mode: 'manual',
+    max_hold_hours: 4,
+  }
+}
+
+function ConfluenceMeter({ models, final }) {
+  return (
+    <div className="meter">
+      <div className="meter-labels">
+        <span>عدم ورود</span>
+        <span>ورود</span>
+      </div>
+      <div className="meter-track">
+        <div className="meter-fill" style={{ width: `${final.winRate}%` }} />
+        {models.map((m) => (
+          <div
+            key={m.id}
+            className="meter-tick"
+            style={{ left: `${m.winRate}%`, background: m.accent }}
+            title={`${m.name}: ${m.winRate}%`}
+          />
+        ))}
+        <div className="meter-needle" style={{ left: `${final.winRate}%` }} />
+      </div>
+      <div className="meter-final">
+        <span className="meter-final-label">نظر نهایی پلتفرم</span>
+        <span dir="ltr" className="meter-final-value">
+          {final.winRate}%
+        </span>
+        <span className="meter-final-decision">{final.decision}</span>
+      </div>
+    </div>
+  )
+}
+
+function ModelCard({ model }) {
+  const verdictClass =
+    model.verdict === 'ورود'
+      ? 'verdict-in'
+      : model.verdict === 'عدم ورود'
+      ? 'verdict-out'
+      : 'verdict-caution'
 
   return (
-    <section className="watchlist-panel">
-      <div className="mode-toggle">
-        <label className={`mode-option ${mode === 'strict' ? 'mode-option-active' : ''}`}>
-          <input
-            type="radio"
-            name="signal-mode"
-            checked={mode === 'strict'}
-            onChange={() => setMode('strict')}
-          />
-          سخت‌گیر (دقت بالاتر، سیگنال کمتر)
-          {counts.strict !== null && (
-            <span dir="ltr"> ({counts.strict} فعال)</span>
-          )}
-        </label>
-        <label className={`mode-option ${mode === 'relaxed' ? 'mode-option-active' : ''}`}>
-          <input
-            type="radio"
-            name="signal-mode"
-            checked={mode === 'relaxed'}
-            onChange={() => setMode('relaxed')}
-          />
-          ساده‌گیر (سیگنال بیشتر، دقت پایین‌تر)
-          {counts.relaxed !== null && (
-            <span dir="ltr"> ({counts.relaxed} فعال)</span>
-          )}
-        </label>
+    <div className="model-card" style={{ '--accent': model.accent }}>
+      <div className="model-card-head">
+        <div>
+          <div className="model-name">{model.name}</div>
+          <div className="model-provider">{model.provider}</div>
+        </div>
+        <div dir="ltr" className="model-winrate">
+          {model.winRate}%
+        </div>
       </div>
 
-      <div className="watchlist-head">
-        <div className="watchlist-head-top">
-          <h2 className="watchlist-title">واچ‌لیست رصد زنده</h2>
-          <div className="watchlist-head-actions">
-            <div className="watchlist-filters">
-              <button className={`filter-chip ${filter === 'all' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('all')}>
-                همه
-              </button>
-              <button className={`filter-chip ${filter === 'long' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('long')}>
-                فقط لانگ
-              </button>
-              <button className={`filter-chip ${filter === 'short' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('short')}>
-                فقط شورت
-              </button>
+      <span className={`verdict-badge ${verdictClass}`}>{model.verdict}</span>
+
+      <div className="method-list">
+        {model.methods.map((meth) => (
+          <div className="method-row" key={meth.name}>
+            <span className="method-name">{meth.name}</span>
+            <div className="method-bar-track">
+              <div
+                className="method-bar-fill"
+                style={{ width: `${meth.score}%` }}
+              />
             </div>
+            <span dir="ltr" className="method-score">
+              {meth.score}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      <p className="model-note">{model.note}</p>
+    </div>
+  )
+}
+
+export default function App() {
+  const [mode, setMode] = useState('text') // 'text' | 'image'
+  const [signalText, setSignalText] = useState('')
+  const [imageFile, setImageFile] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+  const [status, setStatus] = useState('idle') // 'idle' | 'analyzing' | 'done'
+  const [errorMsg, setErrorMsg] = useState('')
+  const [models, setModels] = useState([])
+  const [finalVerdict, setFinalVerdict] = useState(null)
+  const [aiSummary, setAiSummary] = useState('')
+  const [parsedSignal, setParsedSignal] = useState(null)
+  const fileInputRef = useRef(null)
+  const resultsRef = useRef(null)
+
+  const canAnalyze =
+    (mode === 'text' && signalText.trim().length > 0) ||
+    (mode === 'image' && imageFile !== null)
+
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragging(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) setImageFile(file)
+  }
+
+  const handleAnalyze = async () => {
+    if (!canAnalyze) return
+
+    if (mode === 'image') {
+      setErrorMsg(
+        'آپلود تصویر فعلاً پشتیبانی نمی‌شه — لطفاً فعلاً متن سیگنال رو وارد کن.'
+      )
+      return
+    }
+
+    setErrorMsg('')
+    setStatus('analyzing')
+
+    try {
+      const res = await authFetch(`${API_BASE_URL}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signal_text: signalText }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`خطای سرور (کد ${res.status})`)
+      }
+
+      const data = await res.json()
+      setModels(mapModelResults(data.model_results))
+      setFinalVerdict(buildFinalVerdict(data.final_verdict))
+      setAiSummary(data.final_verdict?.ai_summary || '')
+      setParsedSignal(data.parsed_signal || null)
+      setStatus('done')
+    } catch (err) {
+      setErrorMsg(
+        'تحلیل سیگنال با خطا مواجه شد. لطفاً دوباره امتحان کن. (' +
+          err.message +
+          ')'
+      )
+      setStatus('idle')
+    }
+  }
+
+  const handleAutoAnalyze = async (symbol, signalMode = 'relaxed') => {
+    setErrorMsg('')
+    setStatus('analyzing')
+    setMode('text')
+
+    try {
+      const res = await authFetch(`${API_BASE_URL}/auto-signal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ symbol, mode: signalMode }),
+      })
+
+      if (!res.ok) {
+        throw new Error(`خطای سرور (کد ${res.status})`)
+      }
+
+      const data = await res.json()
+      setSignalText(data.signal_text || '')
+      setModels(mapModelResults(data.model_results))
+      setFinalVerdict(buildFinalVerdict(data.final_verdict))
+      setAiSummary(data.final_verdict?.ai_summary || '')
+      setParsedSignal(data.parsed_signal || null)
+      setStatus('done')
+      setTimeout(() => {
+        resultsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    } catch (err) {
+      setErrorMsg(
+        'تحلیل خودکار با خطا مواجه شد. لطفاً دوباره امتحان کن. (' +
+          err.message +
+          ')'
+      )
+      setStatus('idle')
+    }
+  }
+
+  const handleReset = () => {
+    setStatus('idle')
+    setSignalText('')
+    setImageFile(null)
+    setModels([])
+    setFinalVerdict(null)
+    setAiSummary('')
+    setParsedSignal(null)
+    setErrorMsg('')
+  }
+
+  const manualDemoSignal = buildManualDemoSignal(parsedSignal)
+
+  return (
+    <div className="app">
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">◈</span>
+          <span className="brand-name">SignalDesk</span>
+        </div>
+        <div className="topbar-status">
+          <span className="dot" />
+          <span>۴ مدل هوش مصنوعی آماده تحلیل</span>
+          <span className="footer-divider"> · </span>
+          <a
+            href="#admin"
+            className="topbar-admin-link"
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.hash = 'admin'
+              window.location.reload()
+            }}
+          >
+            پنل ادمین و گزارش‌ها
+          </a>
+        </div>
+      </header>
+
+      <main className="main">
+        <OpenPositionsPanel />
+
+        <AutoSignalList
+          onFullAnalyze={handleAutoAnalyze}
+          isAnalyzing={status === 'analyzing'}
+        />
+
+        <section className="intake">
+          <h1 className="intake-title">سیگنال رو بذار روی میز</h1>
+          <p className="intake-sub">
+            متن سیگنال رو وارد کن یا اسکرین‌شاتش رو رها کن — نتیجه‌ی ۴ مدل و
+            جمع‌بندی نهایی رو می‌بینی.
+          </p>
+
+          <div className="tabs">
             <button
-              className="filter-chip refresh-chip"
-              disabled={globalRefreshing || globalRemaining > 0}
-              onClick={handleGlobalRefresh}
+              className={`tab ${mode === 'text' ? 'tab-active' : ''}`}
+              onClick={() => setMode('text')}
             >
-              {globalRefreshing ? 'Refreshing…' : globalRemaining > 0 ? `Refresh (${globalRemaining}s)` : '↻ Refresh'}
+              ورود متنی
+            </button>
+            <button
+              className={`tab ${mode === 'image' ? 'tab-active' : ''}`}
+              onClick={() => setMode('image')}
+            >
+              آپلود تصویر
             </button>
           </div>
-        </div>
-        <span className="watchlist-sub">
-          همه‌ی {filteredSignals.length} ارز زیر نظر — بر اساس امتیاز مرتب‌شده
-          {isPartial && ' — لیست در حال تکمیل شدنه'}
-        </span>
-      </div>
 
-      {status === 'loading' && <div className="watchlist-status">در حال دریافت لیست…</div>}
-      {status === 'error' && <div className="watchlist-status">دریافت لیست با خطا مواجه شد.</div>}
-      {status === 'ready' && filteredSignals.length === 0 && (
-        <div className="watchlist-status">موردی با این فیلتر پیدا نشد.</div>
-      )}
-
-      {status === 'ready' && filteredSignals.length > 0 && (
-        <div className="ticker-list">
-          {filteredSignals.map((s) => (
-            <WatchTickerRow key={s.symbol} signal={s} />
-          ))}
-        </div>
-      )}
-
-      <div className="ready-signals-head">
-        <h2 className="watchlist-title">سیگنال‌های آماده‌ی گرفتن ({readySignals.length})</h2>
-        <span className="watchlist-sub">فقط سیگنال‌هایی که هر ۶ تایم‌فریم تاییدشون کرده</span>
-      </div>
-
-      {status === 'ready' && readySignals.length === 0 && (
-        <div className="watchlist-status">فعلاً هیچ سیگنال آماده‌ای نیست — منتظر بمون تا واچ‌لیست تریگر جدید پیدا کنه.</div>
-      )}
-
-      {status === 'ready' && readySignals.length > 0 && (
-        <div className="watchlist-list">
-          {readySignals.map((s, index) => (
-            <SignalRow
-              key={s.symbol}
-              signal={s}
-              index={index}
-              onFullAnalyze={onFullAnalyze}
-              isAnalyzing={isAnalyzing}
-              mode={mode}
+          {mode === 'text' ? (
+            <textarea
+              className="signal-input"
+              placeholder={
+                'مثال:\nXLM — SHORT\nENTRY: 0.1842 - 0.1875\nTARGET: 0.1825 / 0.1800 / 0.1785\nSL: 0.1973\nLEVERAGE: 10x'
+              }
+              dir="ltr"
+              value={signalText}
+              onChange={(e) => setSignalText(e.target.value)}
             />
-          ))}
-        </div>
-      )}
-    </section>
+          ) : (
+            <div
+              className={`dropzone ${isDragging ? 'dropzone-active' : ''}`}
+              onDragOver={(e) => {
+                e.preventDefault()
+                setIsDragging(true)
+              }}
+              onDragLeave={() => setIsDragging(false)}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+              />
+              {imageFile ? (
+                <span className="dropzone-filename">{imageFile.name}</span>
+              ) : (
+                <>
+                  <span className="dropzone-icon">＋</span>
+                  <span>عکس سیگنال رو اینجا رها کن یا کلیک کن</span>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="intake-actions">
+            <button
+              className="btn-primary"
+              disabled={!canAnalyze || status === 'analyzing'}
+              onClick={handleAnalyze}
+            >
+              {status === 'analyzing' ? 'در حال تحلیل… (تا ۳۰ ثانیه)' : 'شروع تحلیل'}
+            </button>
+            {status === 'done' && (
+              <button className="btn-ghost" onClick={handleReset}>
+                سیگنال جدید
+              </button>
+            )}
+          </div>
+
+          {errorMsg && <p className="error-note">{errorMsg}</p>}
+        </section>
+
+        {status === 'analyzing' && (
+          <div className="analyzing-banner">
+            ⏳ در حال تحلیل با ۴ هوش مصنوعی… (تا ۳۰ ثانیه طول می‌کشه)
+          </div>
+        )}
+
+        {status === 'done' && finalVerdict && (
+          <>
+            <div ref={resultsRef} />
+            {parsedSignal?.symbol && (
+              <div className="results-heading">
+                نتایج تحلیل برای:{' '}
+                <span className="results-heading-symbol">{parsedSignal.symbol}</span>
+                <span
+                  className={`results-heading-direction ${
+                    parsedSignal.direction === 'short' ? 'dir-short' : 'dir-long'
+                  }`}
+                >
+                  {parsedSignal.direction === 'short' ? 'شورت' : 'لانگ'}
+                </span>
+              </div>
+            )}
+
+            <section className="model-grid">
+              {models.map((m) => (
+                <ModelCard key={m.id} model={m} />
+              ))}
+            </section>
+
+            <section className="final-section">
+              <ConfluenceMeter models={models} final={finalVerdict} />
+              {aiSummary && (
+                <div className="ai-summary">
+                  <div className="ai-summary-title">جمع‌بندی تحلیلی</div>
+                  <p>{aiSummary}</p>
+                </div>
+              )}
+
+              {manualDemoSignal && (
+                <div className="watchlist-actions">
+                  <SendToExchangeButton symbol={manualDemoSignal.symbol} hasSignal={true} />
+                  <DemoTradePanel signal={manualDemoSignal} initialOpenTrade={null} />
+                </div>
+              )}
+            </section>
+
+            {parsedSignal && <SignalChart parsedSignal={parsedSignal} />}
+          </>
+        )}
+      </main>
+
+      <footer className="footer">
+        هیچ خروجی این پلتفرم توصیه مالی نیست — تصمیم ورود همیشه با خودته.
+        <span className="footer-divider"> · </span>
+        <a
+          href="#admin"
+          className="footer-admin-link"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.hash = 'admin'
+            window.location.reload()
+          }}
+        >
+          پنل ادمین و گزارش‌ها
+        </a>
+      </footer>
+    </div>
   )
 }
