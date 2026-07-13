@@ -422,6 +422,28 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
   )
 }
 
+function WatchTickerRow({ signal }) {
+  const hasSignal = signal.direction && signal.entry !== null && signal.entry !== undefined
+  return (
+    <div className="ticker-row">
+      <span className="ticker-symbol">{signal.symbol}</span>
+      {signal.direction && (
+        <span className={`ticker-direction ${signal.direction === 'long' ? 'dir-long' : 'dir-short'}`}>
+          {signal.direction === 'long' ? 'لانگ' : 'شورت'}
+        </span>
+      )}
+      <span className={`ticker-score ${scoreLevel(signal.confluence_score)}`} dir="ltr">
+        {signal.confluence_score}%
+      </span>
+      {signal.open_trade && <span className="ticker-live-badge">در تست زنده</span>}
+      {hasSignal && !signal.signal_available && (
+        <span className="ticker-pending">در انتظار تریگر</span>
+      )}
+      <span className="ticker-time">{timeAgo(signal.last_updated)}</span>
+    </div>
+  )
+}
+
 function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
   const [remaining, startCooldown] = useCountdown(ROW_REFRESH_COOLDOWN)
   const [refreshing, setRefreshing] = useState(false)
@@ -608,6 +630,8 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
       return bActive - aActive
     })
 
+  const readySignals = filteredSignals.filter((s) => s.signal_available)
+
   return (
     <section className="watchlist-panel">
       <div className="mode-toggle">
@@ -639,7 +663,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
       <div className="watchlist-head">
         <div className="watchlist-head-top">
-          <h2 className="watchlist-title">سیگنال‌های خودکار پلتفرم</h2>
+          <h2 className="watchlist-title">واچ‌لیست رصد زنده</h2>
           <div className="watchlist-head-actions">
             <div className="watchlist-filters">
               <button className={`filter-chip ${filter === 'all' ? 'filter-chip-active' : ''}`} onClick={() => setFilter('all')}>
@@ -662,7 +686,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
           </div>
         </div>
         <span className="watchlist-sub">
-          بر اساس اندیکاتورهای تکنیکال، مرتب‌شده بر اساس امتیاز
+          همه‌ی {filteredSignals.length} ارز زیر نظر — بر اساس امتیاز مرتب‌شده
           {isPartial && ' — لیست در حال تکمیل شدنه'}
         </span>
       </div>
@@ -674,8 +698,25 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
       )}
 
       {status === 'ready' && filteredSignals.length > 0 && (
+        <div className="ticker-list">
+          {filteredSignals.map((s) => (
+            <WatchTickerRow key={s.symbol} signal={s} />
+          ))}
+        </div>
+      )}
+
+      <div className="ready-signals-head">
+        <h2 className="watchlist-title">سیگنال‌های آماده‌ی گرفتن ({readySignals.length})</h2>
+        <span className="watchlist-sub">فقط سیگنال‌هایی که هر ۶ تایم‌فریم تاییدشون کرده</span>
+      </div>
+
+      {status === 'ready' && readySignals.length === 0 && (
+        <div className="watchlist-status">فعلاً هیچ سیگنال آماده‌ای نیست — منتظر بمون تا واچ‌لیست تریگر جدید پیدا کنه.</div>
+      )}
+
+      {status === 'ready' && readySignals.length > 0 && (
         <div className="watchlist-list">
-          {filteredSignals.map((s, index) => (
+          {readySignals.map((s, index) => (
             <SignalRow
               key={s.symbol}
               signal={s}
