@@ -424,6 +424,32 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
 
 function WatchTickerRow({ signal }) {
   const hasSignal = signal.direction && signal.entry !== null && signal.entry !== undefined
+  const canQuickStart = signal.signal_available && !signal.open_trade
+  const [quickStatus, setQuickStatus] = useState('idle') // 'idle' | 'starting' | 'started' | 'error'
+
+  const handleQuickStart = async () => {
+    setQuickStatus('starting')
+    try {
+      const res = await authFetch(`${API_BASE_URL}/demo-trade/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: signal.symbol,
+          direction: signal.direction,
+          entry: signal.entry,
+          target: signal.target,
+          stop_loss: signal.stop_loss,
+          leverage: signal.suggested_leverage || 5,
+          mode: signal.mode || 'strict',
+          margin_usdt: 10,
+        }),
+      })
+      setQuickStatus(res.ok ? 'started' : 'error')
+    } catch {
+      setQuickStatus('error')
+    }
+  }
+
   return (
     <div className="ticker-row">
       <span className="ticker-symbol">{signal.symbol}</span>
@@ -439,6 +465,16 @@ function WatchTickerRow({ signal }) {
       {hasSignal && !signal.signal_available && (
         <span className="ticker-pending">در انتظار تریگر</span>
       )}
+
+      {canQuickStart && quickStatus === 'idle' && (
+        <button className="ticker-quickstart-btn" onClick={handleQuickStart}>
+          شروع تست زنده (۱۰$)
+        </button>
+      )}
+      {quickStatus === 'starting' && <span className="ticker-pending">در حال شروع…</span>}
+      {quickStatus === 'started' && <span className="ticker-live-badge">شروع شد ✅</span>}
+      {quickStatus === 'error' && <span className="ticker-pending">خطا، دوباره امتحان کن</span>}
+
       <span className="ticker-time">{timeAgo(signal.last_updated)}</span>
     </div>
   )
