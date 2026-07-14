@@ -16,34 +16,75 @@
 
 * { box-sizing: border-box; }
 
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; margin: 0; }
 
 body {
-  margin: 0;
   background: var(--ink);
-  background-image: radial-gradient(circle at 50% 0%, rgba(45, 212, 167, 0.06), transparent 55%);
   color: var(--text);
-  font-family: 'Vazirmatn', sans-serif;
-  -webkit-font-smoothing: antialiased;
+  font-family: 'Vazirmatn', system-ui, sans-serif;
 }
 
-/* ... (بقیه CSS قبلی رو نگه دار و این بخش‌ها رو اضافه/جایگزین کن) */
+.app { min-height: 100%; display: flex; flex-direction: column; }
 
+/* Header */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 28px; border-bottom: 1px solid var(--line);
+}
+
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-mark { color: var(--long); font-size: 20px; }
+.brand-name { font-family: 'JetBrains Mono Variable', monospace; font-weight: 700; font-size: 16px; }
+
+/* Tabs */
+.tabs {
+  display: inline-flex; padding: 4px; background: var(--panel);
+  border: 1px solid var(--line); border-radius: var(--radius); gap: 4px;
+}
+
+.tab {
+  border: none; background: transparent; color: var(--text-muted);
+  padding: 8px 18px; border-radius: 7px; cursor: pointer;
+}
+
+.tab-active { background: var(--panel-raised); color: var(--text); }
+
+/* Main Content */
+.main { flex: 1; max-width: 920px; margin: 0 auto; padding: 40px 24px; }
+
+/* Watchlist & Lists */
+.watchlist-panel, .oppos-panel, .admin-panel {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px;
+}
+
+.watchlist-card, .oppos-row {
+  background: var(--panel-raised); border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+}
+
+/* High WinRate */
 .high-win-badge {
-  background: linear-gradient(90deg, #10b981, #34d399);
-  color: white;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 999px;
+  background: linear-gradient(90deg, #10b981, #34d399); color: white;
+  padding: 2px 8px; border-radius: 999px; font-weight: 700;
 }
 
-.wr-cell {
-  font-family: 'JetBrains Mono Variable', monospace;
-  font-weight: 700;
-}
-
+.wr-cell { font-family: 'JetBrains Mono Variable', monospace; font-weight: 700; }
 .wr-cell.wr-above { color: var(--long); }
 .wr-cell.wr-near { color: var(--caution); }
 .wr-cell.wr-below { color: var(--short); }
 
-/* بقیه استایل‌ها (از پیام قبلی) */
+/* Buttons */
+.btn-primary, .btn-mini, .btn-mini-primary {
+  padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: 600;
+}
+
+.btn-primary { background: var(--long); color: #06231b; border: none; }
+.btn-mini { background: transparent; border: 1px solid var(--line); color: var(--text); }
+
+/* Tables */
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; }
+
+/* Responsive */
+@media (max-width: 680px) {
+  .main { padding: 20px 16px; }
+}
