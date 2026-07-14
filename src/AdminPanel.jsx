@@ -30,7 +30,6 @@ function statusLabel(status) {
   return status
 }
 
-// گروه‌بندی وضعیت‌های خام برای فیلتر «نتیجه»
 function outcomeGroup(status) {
   if (status === 'open') return 'open'
   if (status?.includes('win')) return 'win'
@@ -104,8 +103,6 @@ function DemoTradesTable({ rows }) {
   )
 }
 
-// نقطه‌ی سر‌به‌سر بر اساس نسبت ریسک/ریوارد فعلی سیستم (SL=1.0×ATR / TP=1.6×ATR)
-// یعنی حداقل ۳۸.۵٪ برد لازمه که استراتژی سودده باشه (نه فقط بی‌ضرر)
 const BREAKEVEN_WIN_RATE = 38.5
 
 function wrIndicator(winRate) {
@@ -241,16 +238,12 @@ function StatsPanel({ stats }) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// فیلتر + خروجی گزارش (Excel / Markdown)
-// ---------------------------------------------------------------------------
-
 const DEFAULT_FILTERS = {
   from: '',
   to: '',
-  outcome: 'all', // all | win | loss | open
-  mode: 'all', // all | strict | relaxed
-  direction: 'all', // all | long | short
+  outcome: 'all',
+  mode: 'all',
+  direction: 'all',
   symbol: '',
 }
 
@@ -365,7 +358,7 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
           <span>حالت</span>
           <select value={filters.mode} onChange={update('mode')}>
             <option value="all">همه</option>
-            <option value="strict">سخت‌گیر</option>
+            <option value="strict">سخت‌گیر (High WinRate)</option>
             <option value="relaxed">ساده‌گیر</option>
             <option value="manual">دستی</option>
           </select>
@@ -388,26 +381,16 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
             onChange={update('symbol')}
           />
         </label>
-        <button
-          className="btn-mini"
-          onClick={() => setFilters(DEFAULT_FILTERS)}
-        >
-          پاک کردن فیلترها
-        </button>
+        <button className="btn-mini" onClick={() => setFilters(DEFAULT_FILTERS)}>پاک کردن فیلترها</button>
       </div>
 
       <div className="report-filter-summary">
         <span>
-          {summary.total} معامله در فیلتر فعلی — {summary.resolved} بسته‌شده — Win Rate:{' '}
-          <strong dir="ltr">{summary.winRate ?? '—'}%</strong>
+          {summary.total} معامله — {summary.resolved} بسته‌شده — Win Rate: <strong dir="ltr">{summary.winRate ?? '—'}%</strong>
         </span>
         <div className="report-export-buttons">
-          <button className="btn-mini" disabled={!summary.total} onClick={onExportExcel}>
-            خروجی Excel
-          </button>
-          <button className="btn-mini" disabled={!summary.total} onClick={onExportMarkdown}>
-            خروجی Markdown
-          </button>
+          <button className="btn-mini" disabled={!summary.total} onClick={onExportExcel}>خروجی Excel</button>
+          <button className="btn-mini" disabled={!summary.total} onClick={onExportMarkdown}>خروجی Markdown</button>
         </div>
       </div>
     </div>
@@ -415,11 +398,8 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
 }
 
 export default function AdminPanel() {
-  // پنل ادمین دیگه رمز جدای خودش رو نداره — همون ورود امن سراسری سایت
-  // (SITE_PASSWORD واقعی که سمت سرور چک می‌شه) کافیه. اگه کاربر از قبل
-  // وارد شده (توکن معتبر داره)، مستقیم پنل رو می‌بینه.
   const [unlocked] = useState(!!getToken())
-  const [tab, setTab] = useState('stats') // 'stats' | 'analyses' | 'demo'
+  const [tab, setTab] = useState('stats')
   const [analyses, setAnalyses] = useState([])
   const [demoTrades, setDemoTrades] = useState([])
   const [stats, setStats] = useState(null)
@@ -431,7 +411,6 @@ export default function AdminPanel() {
     try {
       const [analysesRes, demoRes, statsRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/history?limit=30`),
-        // limit بالاتر تا فیلتر بازه‌ی زمانی و خروجی گزارش روی دیتای کامل‌تری کار کنه
         authFetch(`${API_BASE_URL}/demo-trade/history?limit=1000`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
@@ -451,14 +430,8 @@ export default function AdminPanel() {
     if (unlocked) loadData()
   }, [unlocked])
 
-  const filteredDemoTrades = useMemo(
-    () => applyFilters(demoTrades, filters),
-    [demoTrades, filters]
-  )
-  const filteredSummary = useMemo(
-    () => computeSummary(filteredDemoTrades),
-    [filteredDemoTrades]
-  )
+  const filteredDemoTrades = useMemo(() => applyFilters(demoTrades, filters), [demoTrades, filters])
+  const filteredSummary = useMemo(() => computeSummary(filteredDemoTrades), [filteredDemoTrades])
 
   if (!unlocked) {
     return (
@@ -467,17 +440,7 @@ export default function AdminPanel() {
         <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16 }}>
           برای دیدن پنل ادمین، اول باید از صفحه‌ی اصلی با رمز سایت وارد بشی.
         </p>
-        <a
-          className="admin-back-link"
-          href="./"
-          onClick={(e) => {
-            e.preventDefault()
-            window.location.hash = ''
-            window.location.href = './'
-          }}
-        >
-          رفتن به صفحه‌ی ورود
-        </a>
+        <a className="admin-back-link" href="./">رفتن به صفحه‌ی ورود</a>
       </div>
     )
   }
@@ -487,25 +450,15 @@ export default function AdminPanel() {
       <div className="admin-head">
         <h2>پنل ادمین</h2>
         <div className="admin-head-actions">
-          <button className="btn-mini" onClick={loadData}>
-            بروزرسانی
-          </button>
-          <a className="admin-back-link" href="./">
-            بازگشت به سایت
-          </a>
+          <button className="btn-mini" onClick={loadData}>بروزرسانی</button>
+          <a className="admin-back-link" href="./">بازگشت به سایت</a>
         </div>
       </div>
 
       <div className="tabs">
-        <button className={`tab ${tab === 'stats' ? 'tab-active' : ''}`} onClick={() => setTab('stats')}>
-          آمار Win Rate
-        </button>
-        <button className={`tab ${tab === 'analyses' ? 'tab-active' : ''}`} onClick={() => setTab('analyses')}>
-          سوابق تحلیل‌ها ({analyses.length})
-        </button>
-        <button className={`tab ${tab === 'demo' ? 'tab-active' : ''}`} onClick={() => setTab('demo')}>
-          معاملات دمو ({demoTrades.length})
-        </button>
+        <button className={`tab ${tab === 'stats' ? 'tab-active' : ''}`} onClick={() => setTab('stats')}>آمار Win Rate</button>
+        <button className={`tab ${tab === 'analyses' ? 'tab-active' : ''}`} onClick={() => setTab('analyses')}>سوابق تحلیل‌ها ({analyses.length})</button>
+        <button className={`tab ${tab === 'demo' ? 'tab-active' : ''}`} onClick={() => setTab('demo')}>معاملات دمو ({demoTrades.length})</button>
       </div>
 
       {status === 'loading' && <div className="watchlist-status">در حال بارگذاری…</div>}
