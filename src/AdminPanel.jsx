@@ -104,16 +104,42 @@ function DemoTradesTable({ rows }) {
   )
 }
 
+// نقطه‌ی سر‌به‌سر بر اساس نسبت ریسک/ریوارد فعلی سیستم (SL=1.0×ATR / TP=1.6×ATR)
+// یعنی حداقل ۳۸.۵٪ برد لازمه که استراتژی سودده باشه (نه فقط بی‌ضرر)
+const BREAKEVEN_WIN_RATE = 38.5
+
+function wrIndicator(winRate) {
+  if (winRate === null || winRate === undefined) return { cls: '', label: '' }
+  if (winRate >= BREAKEVEN_WIN_RATE + 5) return { cls: 'wr-above', label: '▲' }
+  if (winRate < BREAKEVEN_WIN_RATE) return { cls: 'wr-below', label: '▼' }
+  return { cls: 'wr-near', label: '●' }
+}
+
+function WinRateCell({ winRate }) {
+  if (winRate === null || winRate === undefined) return <span>—</span>
+  const { cls, label } = wrIndicator(winRate)
+  return (
+    <span className={`wr-cell ${cls}`}>
+      {label} {winRate}%
+    </span>
+  )
+}
+
 function StatsPanel({ stats }) {
   if (!stats) return null
 
   return (
     <div>
+      <div className="breakeven-note">
+        نقطه‌ی سر‌به‌سر با نسبت ریسک/ریوارد فعلی سیستم: <strong dir="ltr">{BREAKEVEN_WIN_RATE}%</strong> —
+        زیر این خط یعنی حتی با وین‌ریت مثبت، در مجموع ضرر می‌ده.
+      </div>
+
       <div className="stats-summary-grid">
         <div className="stats-card">
           <span className="stats-card-label">Win Rate کلی</span>
           <span className="stats-card-value" dir="ltr">
-            {stats.win_rate !== null ? `${stats.win_rate}%` : '—'}
+            <WinRateCell winRate={stats.win_rate} />
           </span>
         </div>
         <div className="stats-card">
@@ -157,7 +183,7 @@ function StatsPanel({ stats }) {
                 <td>{modeLabel(m)}</td>
                 <td dir="ltr">{v.total}</td>
                 <td dir="ltr">{v.wins}</td>
-                <td dir="ltr">{v.win_rate !== null ? `${v.win_rate}%` : '—'}</td>
+                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
               </tr>
             ))}
           </tbody>
@@ -181,7 +207,7 @@ function StatsPanel({ stats }) {
                 <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
                 <td dir="ltr">{v.total}</td>
                 <td dir="ltr">{v.wins}</td>
-                <td dir="ltr">{v.win_rate !== null ? `${v.win_rate}%` : '—'}</td>
+                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
               </tr>
             ))}
           </tbody>
@@ -205,7 +231,7 @@ function StatsPanel({ stats }) {
                 <td>{s.symbol}</td>
                 <td dir="ltr">{s.total}</td>
                 <td dir="ltr">{s.wins}</td>
-                <td dir="ltr">{s.win_rate !== null ? `${s.win_rate}%` : '—'}</td>
+                <td dir="ltr"><WinRateCell winRate={s.win_rate} /></td>
               </tr>
             ))}
           </tbody>
