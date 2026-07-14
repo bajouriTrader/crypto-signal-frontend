@@ -1,9 +1,8 @@
-import { authFetch } from './auth'
+import { authFetch, getToken } from './auth'
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
-const ADMIN_PASSCODE = 'bajouri1404' // فقط یه محافظت ساده سمت کلاینت، امنیت واقعی نیست
 
 function fmtTime(iso) {
   if (!iso) return '—'
@@ -390,25 +389,16 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
 }
 
 export default function AdminPanel() {
-  const [unlocked, setUnlocked] = useState(
-    sessionStorage.getItem('admin_unlocked') === '1'
-  )
-  const [passInput, setPassInput] = useState('')
+  // پنل ادمین دیگه رمز جدای خودش رو نداره — همون ورود امن سراسری سایت
+  // (SITE_PASSWORD واقعی که سمت سرور چک می‌شه) کافیه. اگه کاربر از قبل
+  // وارد شده (توکن معتبر داره)، مستقیم پنل رو می‌بینه.
+  const [unlocked] = useState(!!getToken())
   const [tab, setTab] = useState('stats') // 'stats' | 'analyses' | 'demo'
   const [analyses, setAnalyses] = useState([])
   const [demoTrades, setDemoTrades] = useState([])
   const [stats, setStats] = useState(null)
   const [status, setStatus] = useState('idle')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
-
-  const tryUnlock = () => {
-    if (passInput === ADMIN_PASSCODE) {
-      sessionStorage.setItem('admin_unlocked', '1')
-      setUnlocked(true)
-    } else {
-      alert('رمز اشتباهه')
-    }
-  }
 
   const loadData = async () => {
     setStatus('loading')
@@ -447,20 +437,20 @@ export default function AdminPanel() {
   if (!unlocked) {
     return (
       <div className="admin-gate">
-        <h2>پنل ادمین</h2>
-        <input
-          type="password"
-          className="admin-pass-input"
-          placeholder="رمز عبور"
-          value={passInput}
-          onChange={(e) => setPassInput(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && tryUnlock()}
-        />
-        <button className="btn-primary" onClick={tryUnlock}>
-          ورود
-        </button>
-        <a className="admin-back-link" href="./">
-          بازگشت به صفحه اصلی
+        <h2>نیاز به ورود</h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16 }}>
+          برای دیدن پنل ادمین، اول باید از صفحه‌ی اصلی با رمز سایت وارد بشی.
+        </p>
+        <a
+          className="admin-back-link"
+          href="./"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.hash = ''
+            window.location.href = './'
+          }}
+        >
+          رفتن به صفحه‌ی ورود
         </a>
       </div>
     )
