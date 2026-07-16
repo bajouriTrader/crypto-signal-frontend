@@ -79,7 +79,8 @@ function DemoTradesTable({ rows }) {
             <th>حد ضرر</th>
             <th>وضعیت</th>
             <th>خروج</th>
-            <th>سود/زیان</th>
+            <th>سود/زیان ($)</th>
+            <th>درصد خالص (بدون اهرم)</th>
           </tr>
         </thead>
         <tbody>
@@ -96,6 +97,7 @@ function DemoTradesTable({ rows }) {
               <td>{statusLabel(r.status)}</td>
               <td dir="ltr">{r.exit_price ?? '—'}</td>
               <td dir="ltr">{r.realized_pnl !== null && r.realized_pnl !== undefined ? `${r.realized_pnl >= 0 ? '+' : ''}${r.realized_pnl}$` : '—'}</td>
+              <td dir="ltr">{r.realized_pnl_percent !== null && r.realized_pnl_percent !== undefined ? `${r.realized_pnl_percent >= 0 ? '+' : ''}${r.realized_pnl_percent}%` : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -289,6 +291,7 @@ function exportToExcel(rows, summary) {
     'وضعیت': statusLabel(r.status),
     'قیمت خروج': r.exit_price ?? '',
     'سود/زیان ($)': r.realized_pnl ?? '',
+    'درصد خالص (بدون اهرم)': r.realized_pnl_percent ?? '',
   }))
 
   const ws = XLSX.utils.json_to_sheet(data)
@@ -308,7 +311,7 @@ function exportToExcel(rows, summary) {
 }
 
 function exportToMarkdown(rows, summary, filters) {
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان']
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص']
   let md = `# گزارش معاملات دمو\n\n`
   md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
 
@@ -326,7 +329,7 @@ function exportToMarkdown(rows, summary, filters) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} |\n`
   })
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
