@@ -800,7 +800,7 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
 
       <div className="ready-signals-head">
         <h2 className="watchlist-title">سیگنال‌های آماده‌ی گرفتن ({readySignals.length})</h2>
-        <span className="watchlist-sub">فقط سیگنال‌هایی که هر ۶ تایم‌فریم تاییدشون کرده</span>
+        <span className="watchlist-sub">فقط سیگنال‌هایی که هر ۵ تایم‌فریم (۴H تا ۵M) تاییدشون کرده</span>
       </div>
 
       {status === 'ready' && readySignals.length === 0 && (
