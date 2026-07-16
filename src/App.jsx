@@ -90,7 +90,7 @@ function buildManualDemoSignal(parsedSignal) {
     target,
     stop_loss: stopLoss,
     suggested_leverage: parsedSignal.leverage || 5,
-    // سیگنال‌های وارد‌شده‌ی دستی از کسکید ۶ تایم‌فریمی رد نشدن، پس نه
+    // سیگنال‌های وارد‌شده‌ی دستی از کسکید ۵ تایم‌فریمی رد نشدن، پس نه
     // «سخت‌گیر»ان نه «ساده‌گیر» — به‌همین دلیل به‌عنوان حالت جدا برچسب می‌خورن
     mode: 'manual',
     max_hold_hours: 4,
