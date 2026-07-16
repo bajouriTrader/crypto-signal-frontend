@@ -103,7 +103,9 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
   const [elapsed, setElapsed] = useState(0)
   const [livePrice, setLivePrice] = useState(null)
   const [marginInput, setMarginInput] = useState('10')
-  const [leverageInput, setLeverageInput] = useState(String(signal.suggested_leverage || 5))
+  // اهرم عمداً ثابت روی ۵x — قبلاً این فیلد آزاد بود و همین باعث می‌شد
+  // ستون سود/زیان (که دلاره، نه درصد) بین معاملات مختلف قابل‌مقایسه نباشه
+  const [leverageInput] = useState('5')
   const pollRef = useRef(null)
   const elapsedTimerRef = useRef(null)
   const livePriceTimerRef = useRef(null)
@@ -377,12 +379,13 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
                 />
               </div>
               <div className="demo-config-row">
-                <label>اهرم</label>
+                <label>اهرم (ثابت — برای قابل‌مقایسه ماندن نتایج دمو)</label>
                 <div className="demo-config-input-wrap">
                   <input
                     type="number"
                     value={leverageInput}
-                    onChange={(e) => setLeverageInput(e.target.value)}
+                    disabled
+                    readOnly
                     className="demo-config-input"
                     dir="ltr"
                   />
