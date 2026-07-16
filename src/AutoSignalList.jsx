@@ -226,6 +226,8 @@ export function DemoTradePanel({ signal, initialOpenTrade }) {
           leverage: parseFloat(leverageInput) || 5,
           mode: live.mode || signal.mode || 'strict',
           margin_usdt: parseFloat(marginInput) || 10,
+          confluence_score: live.confluence_score ?? null,
+          diagnostics: live.diagnostics ?? null,
         }),
       })
       const data = await res.json()
@@ -493,6 +495,8 @@ function WatchTickerRow({ signal }) {
           leverage: fresh.suggested_leverage || 5,
           mode: fresh.mode || signal.mode || 'strict',
           margin_usdt: 10,
+          confluence_score: fresh.confluence_score ?? null,
+          diagnostics: fresh.diagnostics ?? null,
         }),
       })
       setQuickStatus(res.ok ? 'started' : 'error')
