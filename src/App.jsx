@@ -10,7 +10,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // شماره‌ی نسخه‌ی همین کد فرانت‌اند — هر بار که فایل‌های فرانت رو طبق یک
 // نسخه‌ی جدید (V.1, V.2, ...) جایگزین کردی، همینو هم دستی آپدیت کن تا با
 // CHANGELOG.md هماهنگ بمونه.
-const FRONTEND_VERSION = 'V.1'
+const FRONTEND_VERSION = 'V.1.1'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه

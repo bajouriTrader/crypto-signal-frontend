@@ -292,6 +292,9 @@ function exportToExcel(rows, summary) {
     'قیمت خروج': r.exit_price ?? '',
     'سود/زیان ($)': r.realized_pnl ?? '',
     'درصد خالص (بدون اهرم)': r.realized_pnl_percent ?? '',
+    // V.1.1: امتیاز confluence برای این‌که بشه واقعاً بررسی کرد آیا گیت
+    // MIN_CONFLUENCE_SCORE (فاز ۱) دارد اثر واقعی می‌گذارد یا نه
+    'امتیاز Confluence': r.confluence_score ?? '',
   }))
 
   const ws = XLSX.utils.json_to_sheet(data)
@@ -311,7 +314,9 @@ function exportToExcel(rows, summary) {
 }
 
 function exportToMarkdown(rows, summary, filters) {
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص']
+  // V.1.1: ستون امتیاز Confluence اضافه شد تا بشه توزیع واقعی امتیازها رو
+  // دید و تایید کرد که گیت MIN_CONFLUENCE_SCORE (فاز ۱) واقعاً فیلتر می‌کنه یا نه
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence']
   let md = `# گزارش معاملات دمو\n\n`
   md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
 
@@ -329,7 +334,7 @@ function exportToMarkdown(rows, summary, filters) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} |\n`
   })
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
