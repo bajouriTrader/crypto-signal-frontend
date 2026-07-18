@@ -1,11 +1,16 @@
 import { authFetch } from './auth'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 import OpenPositionsPanel from './OpenPositionsPanel'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
+
+// شماره‌ی نسخه‌ی همین کد فرانت‌اند — هر بار که فایل‌های فرانت رو طبق یک
+// نسخه‌ی جدید (V.1, V.2, ...) جایگزین کردی، همینو هم دستی آپدیت کن تا با
+// CHANGELOG.md هماهنگ بمونه.
+const FRONTEND_VERSION = 'V.1'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -185,6 +190,27 @@ export default function App() {
   const fileInputRef = useRef(null)
   const resultsRef = useRef(null)
 
+  // نسخه‌ی بک‌اند که واقعاً در حال اجراست (از GET /version) — جدا از
+  // FRONTEND_VERSION، چون فرانت و بک‌اند جدا دیپلوی می‌شن و ممکنه هر
+  // کدوم موقتاً نسخه‌ی متفاوتی داشته باشن (مثلاً تازه یکی رو آپدیت کردی).
+  const [backendVersion, setBackendVersion] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE_URL}/version`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.version) setBackendVersion(data.version)
+      })
+      .catch(() => {
+        // بی‌سروصدا نادیده گرفته می‌شه — نسخه‌ی بک‌اند فقط نمایشیه،
+        // نباید اگه سرور موقتاً در دسترس نبود کل صفحه رو خراب کنه
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const canAnalyze =
     (mode === 'text' && signalText.trim().length > 0) ||
     (mode === 'image' && imageFile !== null)
@@ -291,6 +317,19 @@ export default function App() {
         <div className="brand">
           <span className="brand-mark">◈</span>
           <span className="brand-name">SignalDesk</span>
+          <span
+            className="version-badge"
+            title={
+              backendVersion
+                ? `فرانت‌اند: ${FRONTEND_VERSION} — بک‌اند: ${backendVersion}`
+                : `فرانت‌اند: ${FRONTEND_VERSION} — بک‌اند: در حال بررسی...`
+            }
+          >
+            {FRONTEND_VERSION}
+            {backendVersion && backendVersion !== FRONTEND_VERSION
+              ? ` / ${backendVersion}`
+              : ''}
+          </span>
         </div>
         <div className="topbar-status">
           <span className="dot" />

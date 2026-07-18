@@ -70,6 +70,18 @@ body {
   font-size: 16px;
 }
 
+.version-badge {
+  font-family: 'JetBrains Mono Variable', monospace;
+  font-size: 11px;
+  color: var(--text-muted, #8a8f98);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 2px 7px;
+  letter-spacing: 0.3px;
+  cursor: default;
+}
+
 .topbar-status {
   display: flex;
   align-items: center;
