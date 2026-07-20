@@ -81,6 +81,7 @@ function DemoTradesTable({ rows }) {
             <th>خروج</th>
             <th>سود/زیان ($)</th>
             <th>درصد خالص (بدون اهرم)</th>
+            <th>Probation</th>
           </tr>
         </thead>
         <tbody>
@@ -98,6 +99,7 @@ function DemoTradesTable({ rows }) {
               <td dir="ltr">{r.exit_price ?? '—'}</td>
               <td dir="ltr">{r.realized_pnl !== null && r.realized_pnl !== undefined ? `${r.realized_pnl >= 0 ? '+' : ''}${r.realized_pnl}$` : '—'}</td>
               <td dir="ltr">{r.realized_pnl_percent !== null && r.realized_pnl_percent !== undefined ? `${r.realized_pnl_percent >= 0 ? '+' : ''}${r.realized_pnl_percent}%` : '—'}</td>
+              <td>{r.is_probation_trade ? '🧪 آزمایشی' : '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -166,6 +168,30 @@ function StatsPanel({ stats }) {
           <span className="stats-card-label">بسته‌شده دستی</span>
           <span className="stats-card-value" dir="ltr">{stats.manual_closes}</span>
         </div>
+      </div>
+
+      <h3 className="stats-section-title">تفکیک بر اساس probation (V.1.5)</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>نوع</th>
+              <th>تعداد</th>
+              <th>برد</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(stats.by_probation || {}).map(([k, v]) => (
+              <tr key={k}>
+                <td>{k === 'probation' ? 'تلاش آزمایشی probation' : 'عادی'}</td>
+                <td dir="ltr">{v.total}</td>
+                <td dir="ltr">{v.wins}</td>
+                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <h3 className="stats-section-title">تفکیک بر اساس حالت (سخت‌گیر / ساده‌گیر)</h3>
@@ -254,6 +280,7 @@ const DEFAULT_FILTERS = {
   mode: 'all', // all | strict | relaxed
   direction: 'all', // all | long | short
   symbol: '',
+  probation: 'all', // all | probation | normal — V.1.5
 }
 
 function applyFilters(rows, f) {
@@ -264,6 +291,8 @@ function applyFilters(rows, f) {
     if (f.mode !== 'all' && r.mode !== f.mode) return false
     if (f.direction !== 'all' && r.direction !== f.direction) return false
     if (f.symbol && !r.symbol?.toUpperCase().includes(f.symbol.toUpperCase())) return false
+    if (f.probation === 'probation' && !r.is_probation_trade) return false
+    if (f.probation === 'normal' && r.is_probation_trade) return false
     return true
   })
 }
@@ -295,6 +324,8 @@ function exportToExcel(rows, summary) {
     // V.1.1: امتیاز confluence برای این‌که بشه واقعاً بررسی کرد آیا گیت
     // MIN_CONFLUENCE_SCORE (فاز ۱) دارد اثر واقعی می‌گذارد یا نه
     'امتیاز Confluence': r.confluence_score ?? '',
+    // V.1.5: آیا این معامله از طریق تلاش آزمایشی probation باز شده؟
+    'Probation': r.is_probation_trade ? 'آزمایشی' : 'عادی',
   }))
 
   const ws = XLSX.utils.json_to_sheet(data)
@@ -316,7 +347,9 @@ function exportToExcel(rows, summary) {
 function exportToMarkdown(rows, summary, filters) {
   // V.1.1: ستون امتیاز Confluence اضافه شد تا بشه توزیع واقعی امتیازها رو
   // دید و تایید کرد که گیت MIN_CONFLUENCE_SCORE (فاز ۱) واقعاً فیلتر می‌کنه یا نه
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence']
+  // V.1.5: ستون Probation اضافه شد تا بشه دقیقاً دید کدوم معامله از طریق
+  // تلاش آزمایشی probation باز شده، بدون نیاز به حدس‌زدن از روی زمان دیپلوی
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation']
   let md = `# گزارش معاملات دمو\n\n`
   md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
 
@@ -334,7 +367,7 @@ function exportToMarkdown(rows, summary, filters) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} |\n`
   })
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
@@ -384,6 +417,14 @@ function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdo
             <option value="all">همه</option>
             <option value="long">لانگ</option>
             <option value="short">شورت</option>
+          </select>
+        </label>
+        <label className="report-filter-field">
+          <span>Probation</span>
+          <select value={filters.probation} onChange={update('probation')}>
+            <option value="all">همه</option>
+            <option value="probation">فقط آزمایشی</option>
+            <option value="normal">فقط عادی</option>
           </select>
         </label>
         <label className="report-filter-field">
