@@ -11,7 +11,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // نسخه‌ی جدید (V.1, V.2, ...) جایگزین کردی، همینو هم دستی آپدیت کن تا با
 // CHANGELOG.md هماهنگ بمونه.
 // V.2.1: آپدیت نسخه فرانت‌اند برای هماهنگی با بک‌اند V.2.1
-const FRONTEND_VERSION = 'V.2.1'
+const FRONTEND_VERSION = 'V.2.2'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
