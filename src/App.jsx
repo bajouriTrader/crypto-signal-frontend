@@ -10,7 +10,8 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // شماره‌ی نسخه‌ی همین کد فرانت‌اند — هر بار که فایل‌های فرانت رو طبق یک
 // نسخه‌ی جدید (V.1, V.2, ...) جایگزین کردی، همینو هم دستی آپدیت کن تا با
 // CHANGELOG.md هماهنگ بمونه.
-const FRONTEND_VERSION = 'V.1.5'
+// V.2.1: آپدیت نسخه فرانت‌اند برای هماهنگی با بک‌اند V.2.1
+const FRONTEND_VERSION = 'V.2.1'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -79,8 +80,7 @@ function buildFinalVerdict(finalVerdictData) {
   return { decision, winRate: Math.round(score) }
 }
 
-// ساخت شیء سیگنال با شکل موردنیاز DemoTradePanel/SendToExchangeButton، از
-// روی parsed_signal که بک‌اند برای تحلیل دستی برمی‌گردونه (entries[]/targets[])
+// ساخت شیء سیگنال با شکل موردنیاز DemoTradePanel/SendToExchangeButton
 function buildManualDemoSignal(parsedSignal) {
   if (!parsedSignal?.symbol || !parsedSignal?.direction) return null
   const entry = Array.isArray(parsedSignal.entries) ? parsedSignal.entries[0] : parsedSignal.entry
@@ -95,8 +95,6 @@ function buildManualDemoSignal(parsedSignal) {
     target,
     stop_loss: stopLoss,
     suggested_leverage: parsedSignal.leverage || 5,
-    // سیگنال‌های وارد‌شده‌ی دستی از کسکید ۵ تایم‌فریمی رد نشدن، پس نه
-    // «سخت‌گیر»ان نه «ساده‌گیر» — به‌همین دلیل به‌عنوان حالت جدا برچسب می‌خورن
     mode: 'manual',
     max_hold_hours: 4,
   }
@@ -177,11 +175,11 @@ function ModelCard({ model }) {
 }
 
 export default function App() {
-  const [mode, setMode] = useState('text') // 'text' | 'image'
+  const [mode, setMode] = useState('text')
   const [signalText, setSignalText] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
-  const [status, setStatus] = useState('idle') // 'idle' | 'analyzing' | 'done'
+  const [status, setStatus] = useState('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [models, setModels] = useState([])
   const [finalVerdict, setFinalVerdict] = useState(null)
@@ -190,9 +188,6 @@ export default function App() {
   const fileInputRef = useRef(null)
   const resultsRef = useRef(null)
 
-  // نسخه‌ی بک‌اند که واقعاً در حال اجراست (از GET /version) — جدا از
-  // FRONTEND_VERSION، چون فرانت و بک‌اند جدا دیپلوی می‌شن و ممکنه هر
-  // کدوم موقتاً نسخه‌ی متفاوتی داشته باشن (مثلاً تازه یکی رو آپدیت کردی).
   const [backendVersion, setBackendVersion] = useState(null)
 
   useEffect(() => {
@@ -202,10 +197,7 @@ export default function App() {
       .then((data) => {
         if (!cancelled && data?.version) setBackendVersion(data.version)
       })
-      .catch(() => {
-        // بی‌سروصدا نادیده گرفته می‌شه — نسخه‌ی بک‌اند فقط نمایشیه،
-        // نباید اگه سرور موقتاً در دسترس نبود کل صفحه رو خراب کنه
-      })
+      .catch(() => {})
     return () => {
       cancelled = true
     }
