@@ -82,6 +82,7 @@ function DemoTradesTable({ rows }) {
             <th>سود/زیان ($)</th>
             <th>درصد خالص (بدون اهرم)</th>
             <th>Probation</th>
+            <th>نسخه</th>
           </tr>
         </thead>
         <tbody>
@@ -100,6 +101,7 @@ function DemoTradesTable({ rows }) {
               <td dir="ltr">{r.realized_pnl !== null && r.realized_pnl !== undefined ? `${r.realized_pnl >= 0 ? '+' : ''}${r.realized_pnl}$` : '—'}</td>
               <td dir="ltr">{r.realized_pnl_percent !== null && r.realized_pnl_percent !== undefined ? `${r.realized_pnl_percent >= 0 ? '+' : ''}${r.realized_pnl_percent}%` : '—'}</td>
               <td>{r.is_probation_trade ? '🧪 آزمایشی' : '—'}</td>
+              <td dir="ltr">{r.app_version ?? '—'}</td>
             </tr>
           ))}
         </tbody>
@@ -108,9 +110,13 @@ function DemoTradesTable({ rows }) {
   )
 }
 
-// نقطه‌ی سر‌به‌سر بر اساس نسبت ریسک/ریوارد فعلی سیستم (SL=1.0×ATR / TP=1.6×ATR)
-// یعنی حداقل ۳۸.۵٪ برد لازمه که استراتژی سودده باشه (نه فقط بی‌ضرر)
-const BREAKEVEN_WIN_RATE = 38.5
+// نقطه‌ی سر‌به‌سر بر اساس نسبت ریسک/ریوارد فعلی سیستم
+// --- آپدیت V.2.2: R:R از ۱:۱.۶۳ (SL=1.0×ATR/TP=1.63×ATR) به ۱:۲.۵
+// (SL=0.8×ATR/TP=2.0×ATR) تغییر کرد؛ این عدد هم‌زمان با اون آپدیت نشده
+// بود و همچنان ۳۸.۵٪ (نقطه‌ی سربه‌سر نسخه‌ی قدیمی) رو نشون می‌داد —
+// یعنی پنل ادمین خط سربه‌سر رو سخت‌گیرانه‌تر از واقعیت نشون می‌داد.
+// نقطه‌ی سربه‌سر واقعی با RR=۲.۵: ۱ / (۱ + ۲.۵) = ۲۸.۶٪
+const BREAKEVEN_WIN_RATE = 28.6
 
 function wrIndicator(winRate) {
   if (winRate === null || winRate === undefined) return { cls: '', label: '' }
@@ -168,6 +174,30 @@ function StatsPanel({ stats }) {
           <span className="stats-card-label">بسته‌شده دستی</span>
           <span className="stats-card-value" dir="ltr">{stats.manual_closes}</span>
         </div>
+      </div>
+
+      <h3 className="stats-section-title">تفکیک بر اساس نسخه‌ی کد (لحظه‌ی باز شدن معامله)</h3>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
+          <thead>
+            <tr>
+              <th>نسخه</th>
+              <th>تعداد</th>
+              <th>برد</th>
+              <th>Win Rate</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(stats.by_version || []).map((v) => (
+              <tr key={v.version}>
+                <td>{v.version}</td>
+                <td dir="ltr">{v.total}</td>
+                <td dir="ltr">{v.wins}</td>
+                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       <h3 className="stats-section-title">تفکیک بر اساس probation (V.1.5)</h3>
@@ -326,6 +356,7 @@ function exportToExcel(rows, summary) {
     'امتیاز Confluence': r.confluence_score ?? '',
     // V.1.5: آیا این معامله از طریق تلاش آزمایشی probation باز شده؟
     'Probation': r.is_probation_trade ? 'آزمایشی' : 'عادی',
+    'نسخه': r.app_version ?? '',
   }))
 
   const ws = XLSX.utils.json_to_sheet(data)
@@ -349,7 +380,7 @@ function exportToMarkdown(rows, summary, filters) {
   // دید و تایید کرد که گیت MIN_CONFLUENCE_SCORE (فاز ۱) واقعاً فیلتر می‌کنه یا نه
   // V.1.5: ستون Probation اضافه شد تا بشه دقیقاً دید کدوم معامله از طریق
   // تلاش آزمایشی probation باز شده، بدون نیاز به حدس‌زدن از روی زمان دیپلوی
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation']
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation', 'نسخه']
   let md = `# گزارش معاملات دمو\n\n`
   md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
 
@@ -367,7 +398,7 @@ function exportToMarkdown(rows, summary, filters) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} | ${r.app_version ?? '—'} |\n`
   })
 
   const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
