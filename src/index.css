@@ -1272,6 +1272,17 @@ body {
   display: flex;
   gap: 8px;
 }
+
+/* V.2.4: صفحه‌بندی جدول گزارش‌ها (۱۰۰ تا ۱۰۰) */
+.report-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin: 14px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
 /* ===== پنل پوزیشن‌های باز (اضافه‌شده) ===== */
 
 .oppos-panel {

@@ -13,7 +13,7 @@ function Root() {
     return <Login onSuccess={() => setAuthed(true)} />
   }
 
-  const RootComponent = window.location.hash === '#admin' ? AdminPanel : App
+  const RootComponent = window.location.hash.startsWith('#admin') ? AdminPanel : App
   return <RootComponent />
 }
 

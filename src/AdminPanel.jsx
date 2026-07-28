@@ -499,20 +499,32 @@ export default function AdminPanel() {
   // (SITE_PASSWORD واقعی که سمت سرور چک می‌شه) کافیه. اگه کاربر از قبل
   // وارد شده (توکن معتبر داره)، مستقیم پنل رو می‌بینه.
   const [unlocked] = useState(!!getToken())
-  const [tab, setTab] = useState('stats') // 'stats' | 'analyses' | 'demo'
+  // V.2.4: اگه از لینک میان‌بر «خروجی گزارش» (#admin/demo) اومده باشیم،
+  // مستقیم تب گزارش‌ها/دمو باز بشه، نه تب پیش‌فرض آمار.
+  const [tab, setTab] = useState(window.location.hash.includes('demo') ? 'demo' : 'stats') // 'stats' | 'analyses' | 'demo'
   const [analyses, setAnalyses] = useState([])
   const [demoTrades, setDemoTrades] = useState([])
   const [stats, setStats] = useState(null)
   const [status, setStatus] = useState('idle')
   const [filters, setFilters] = useState(DEFAULT_FILTERS)
+  // V.2.4: به‌جای نمایش کل تاریخچه (که می‌تونه هزاران ردیف بشه) توی یک
+  // صفحه، جدول ۱۰۰ تا ۱۰۰ نمایش داده می‌شه. فیلتر/خروجی همچنان روی کل
+  // داده‌ی فیلترشده کار می‌کنه — فقط نمایش جدول صفحه‌بندی شده.
+  const PAGE_SIZE = 100
+  const [page, setPage] = useState(0)
 
   const loadData = async () => {
     setStatus('loading')
     try {
       const [analysesRes, demoRes, statsRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/history?limit=30`),
-        // limit بالاتر تا فیلتر بازه‌ی زمانی و خروجی گزارش روی دیتای کامل‌تری کار کنه
-        authFetch(`${API_BASE_URL}/demo-trade/history?limit=1000`),
+        // V.2.4: قبلاً اینجا /demo-trade/history?limit=1000 صدا زده می‌شد
+        // که سقف ثابت ۱۰۰۰ داشت و قدیمی‌ترین معاملات رو از گزارش/فیلتر/
+        // خروجی حذف می‌کرد. /demo-trade/export سقف نداره (کل تاریخچه رو
+        // با صفحه‌بندی داخلی سمت بک‌اند می‌کشه). نمایش جدول همچنان
+        // صفحه‌بندی‌شده (۱۰۰ تا ۱۰۰) انجام می‌شه، ولی فیلتر و خروجی
+        // Markdown/Excel روی کل داده کار می‌کنن.
+        authFetch(`${API_BASE_URL}/demo-trade/export`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
@@ -538,6 +550,17 @@ export default function AdminPanel() {
   const filteredSummary = useMemo(
     () => computeSummary(filteredDemoTrades),
     [filteredDemoTrades]
+  )
+
+  const pageCount = Math.max(1, Math.ceil(filteredDemoTrades.length / PAGE_SIZE))
+  // اگه فیلتر عوض شد و صفحه‌ی فعلی دیگه معتبر نبود (مثلاً از صفحه‌ی ۵
+  // به یه فیلتر با فقط ۲ صفحه اومدیم)، برگرد صفحه‌ی اول
+  useEffect(() => {
+    setPage(0)
+  }, [filters])
+  const pagedDemoTrades = useMemo(
+    () => filteredDemoTrades.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE),
+    [filteredDemoTrades, page]
   )
 
   if (!unlocked) {
@@ -602,7 +625,26 @@ export default function AdminPanel() {
             onExportExcel={() => exportToExcel(filteredDemoTrades, filteredSummary)}
             onExportMarkdown={() => exportToMarkdown(filteredDemoTrades, filteredSummary, filters)}
           />
-          <DemoTradesTable rows={filteredDemoTrades} />
+          <div className="report-pagination">
+            <button
+              className="btn-mini"
+              disabled={page === 0}
+              onClick={() => setPage((p) => Math.max(0, p - 1))}
+            >
+              ← قبلی
+            </button>
+            <span dir="ltr">
+              صفحه {page + 1} از {pageCount} — نمایش {pagedDemoTrades.length} از {filteredDemoTrades.length}
+            </span>
+            <button
+              className="btn-mini"
+              disabled={page >= pageCount - 1}
+              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            >
+              بعدی →
+            </button>
+          </div>
+          <DemoTradesTable rows={pagedDemoTrades} />
         </>
       )}
     </div>

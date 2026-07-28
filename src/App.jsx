@@ -335,6 +335,18 @@ export default function App() {
           >
             پنل ادمین و گزارش‌ها
           </a>
+          <span className="footer-divider"> · </span>
+          <a
+            href="#admin/demo"
+            className="topbar-admin-link"
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.hash = 'admin/demo'
+              window.location.reload()
+            }}
+          >
+            خروجی گزارش (Markdown)
+          </a>
         </div>
       </header>
 
@@ -489,6 +501,18 @@ export default function App() {
           }}
         >
           پنل ادمین و گزارش‌ها
+        </a>
+        <span className="footer-divider"> · </span>
+        <a
+          href="#admin/demo"
+          className="footer-admin-link"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.hash = 'admin/demo'
+            window.location.reload()
+          }}
+        >
+          خروجی گزارش (Markdown)
         </a>
       </footer>
     </div>
