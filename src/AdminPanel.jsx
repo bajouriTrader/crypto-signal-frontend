@@ -88,24 +88,27 @@ function DemoTradesTable({ rows }) {
   )
 }
 
-// نقطه‌ی سر‌به‌سر بر اساس نسبت ریسک/ریوارد فعلی سیستم
-// --- آپدیت V.2.2: R:R از ۱:۱.۶۳ (SL=1.0×ATR/TP=1.63×ATR) به ۱:۲.۵
-// (SL=0.8×ATR/TP=2.0×ATR) تغییر کرد؛ این عدد هم‌زمان با اون آپدیت نشده
-// بود و همچنان ۳۸.۵٪ (نقطه‌ی سربه‌سر نسخه‌ی قدیمی) رو نشون می‌داد —
-// یعنی پنل ادمین خط سربه‌سر رو سخت‌گیرانه‌تر از واقعیت نشون می‌داد.
-// نقطه‌ی سربه‌سر واقعی با RR=۲.۵: ۱ / (۱ + ۲.۵) = ۲۸.۶٪
-const BREAKEVEN_WIN_RATE = 28.6
+// V.2.4: نقطه‌ی سربه‌سر دیگه یک عدد hardcode جدا نیست — این دقیقاً همون
+// چیزیه که باعث شد بعد از rollback از V.2.2 به V.2.3، این خط برای مدتی
+// مقدار غلط (متعلق به R:R قدیمی V.2.2) نشون بده، چون کسی یادش نبود این
+// ثابت رو هم‌زمان با تغییر R:R واقعی سرور آپدیت کنه. الان مقدار از
+// GET /version (که خودش از SL_ATR_MULTIPLIER/TP_ATR_MULTIPLIER واقعی
+// indicators.py می‌سازدش) خونده می‌شه — همیشه با نسخه‌ی در حال اجرا
+// هماهنگه. تا وقتی جواب بک‌اند نرسیده، یک مقدار پیش‌فرض معقول (بر مبنای
+// R:R فعلی V.2.3: SL=1.1×ATR / TP=1.8×ATR → ۱/(۱+۱.۸/۱.۱)=۳۷.۹٪) موقتاً
+// نمایش داده می‌شه.
+const DEFAULT_BREAKEVEN_WIN_RATE = 37.9
 
-function wrIndicator(winRate) {
+function wrIndicator(winRate, breakeven) {
   if (winRate === null || winRate === undefined) return { cls: '', label: '' }
-  if (winRate >= BREAKEVEN_WIN_RATE + 5) return { cls: 'wr-above', label: '▲' }
-  if (winRate < BREAKEVEN_WIN_RATE) return { cls: 'wr-below', label: '▼' }
+  if (winRate >= breakeven + 5) return { cls: 'wr-above', label: '▲' }
+  if (winRate < breakeven) return { cls: 'wr-below', label: '▼' }
   return { cls: 'wr-near', label: '●' }
 }
 
-function WinRateCell({ winRate }) {
+function WinRateCell({ winRate, breakeven }) {
   if (winRate === null || winRate === undefined) return <span>—</span>
-  const { cls, label } = wrIndicator(winRate)
+  const { cls, label } = wrIndicator(winRate, breakeven)
   return (
     <span className={`wr-cell ${cls}`}>
       {label} {winRate}%
@@ -126,21 +129,27 @@ function StatsBlock({ title, note, children }) {
   )
 }
 
-function StatsPanel({ stats, backendVersion }) {
+function StatsPanel({ stats, backendVersion, breakeven }) {
   if (!stats) return null
 
   return (
     <div>
       <div className="breakeven-note">
-        نقطه‌ی سر‌به‌سر با نسبت ریسک/ریوارد فعلی سیستم: <strong dir="ltr">{BREAKEVEN_WIN_RATE}%</strong> —
+        نقطه‌ی سر‌به‌سر با نسبت ریسک/ریوارد فعلی سیستم: <strong dir="ltr">{breakeven}%</strong> —
         زیر این خط یعنی حتی با وین‌ریت مثبت، در مجموع ضرر می‌ده.
+        {backendVersion && (
+          <span className="breakeven-source-note">
+            {' '}
+            (بر مبنای R:R نسخه‌ی فعلی «{backendVersion}» — از GET /version خونده می‌شه، نه از میانگین معاملات گذشته)
+          </span>
+        )}
       </div>
 
       <div className="stats-summary-grid">
         <div className="stats-card">
           <span className="stats-card-label">Win Rate کلی (همه‌ی نسخه‌ها با هم)</span>
           <span className="stats-card-value" dir="ltr">
-            <WinRateCell winRate={stats.win_rate} />
+            <WinRateCell winRate={stats.win_rate} breakeven={breakeven} />
           </span>
         </div>
         <div className="stats-card">
@@ -190,7 +199,7 @@ function StatsPanel({ stats, backendVersion }) {
                   </td>
                   <td dir="ltr">{v.total}</td>
                   <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
                 </tr>
               ))}
             </tbody>
@@ -215,7 +224,7 @@ function StatsPanel({ stats, backendVersion }) {
                   <td>{k === 'probation' ? 'تلاش آزمایشی probation' : 'عادی'}</td>
                   <td dir="ltr">{v.total}</td>
                   <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
                 </tr>
               ))}
             </tbody>
@@ -240,7 +249,7 @@ function StatsPanel({ stats, backendVersion }) {
                   <td>{modeLabel(m)}</td>
                   <td dir="ltr">{v.total}</td>
                   <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
                 </tr>
               ))}
             </tbody>
@@ -265,7 +274,7 @@ function StatsPanel({ stats, backendVersion }) {
                   <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
                   <td dir="ltr">{v.total}</td>
                   <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
                 </tr>
               ))}
             </tbody>
@@ -290,7 +299,7 @@ function StatsPanel({ stats, backendVersion }) {
                   <td>{s.symbol}</td>
                   <td dir="ltr">{s.total}</td>
                   <td dir="ltr">{s.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={s.win_rate} /></td>
+                  <td dir="ltr"><WinRateCell winRate={s.win_rate} breakeven={breakeven} /></td>
                 </tr>
               ))}
             </tbody>
@@ -475,13 +484,19 @@ export default function AdminPanel() {
   // متناظرش در جدول «تفکیک بر اساس نسخه‌ی کد» — بدون این، کاربر باید
   // دستی APP_VERSION رو با یکی از ردیف‌های جدول تطبیق بده
   const [backendVersion, setBackendVersion] = useState(null)
+  // نقطه‌ی سربه‌سر واقعی، مستقیم از R:R نسخه‌ی در حال اجرا (نه از
+  // میانگین معاملات گذشته) — تا وقتی جواب بک‌اند نرسیده مقدار پیش‌فرض
+  // نمایش داده می‌شه
+  const [breakevenWinRate, setBreakevenWinRate] = useState(DEFAULT_BREAKEVEN_WIN_RATE)
 
   useEffect(() => {
     let cancelled = false
     fetch(`${API_BASE_URL}/version`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
-        if (!cancelled && data?.version) setBackendVersion(data.version)
+        if (cancelled || !data) return
+        if (data.version) setBackendVersion(data.version)
+        if (typeof data.breakeven_win_rate === 'number') setBreakevenWinRate(data.breakeven_win_rate)
       })
       .catch(() => {})
     return () => {
@@ -600,7 +615,9 @@ export default function AdminPanel() {
       {status === 'loading' && <div className="watchlist-status">در حال بارگذاری…</div>}
       {status === 'error' && <div className="watchlist-status">خطا در دریافت اطلاعات</div>}
 
-      {status === 'ready' && tab === 'stats' && <StatsPanel stats={stats} backendVersion={backendVersion} />}
+      {status === 'ready' && tab === 'stats' && (
+        <StatsPanel stats={stats} backendVersion={backendVersion} breakeven={breakevenWinRate} />
+      )}
       {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
       {status === 'ready' && tab === 'demo' && (
         <>
