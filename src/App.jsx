@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from 'react'
 import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 import OpenPositionsPanel from './OpenPositionsPanel'
+import { quickDownloadFullReport } from './reportExport'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
@@ -10,8 +11,10 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // شماره‌ی نسخه‌ی همین کد فرانت‌اند — هر بار که فایل‌های فرانت رو طبق یک
 // نسخه‌ی جدید (V.1, V.2, ...) جایگزین کردی، همینو هم دستی آپدیت کن تا با
 // CHANGELOG.md هماهنگ بمونه.
-// V.2.1: آپدیت نسخه فرانت‌اند برای هماهنگی با بک‌اند V.2.1
-const FRONTEND_VERSION = 'V.2.3'
+// V.2.4: دانلود مستقیم گزارش از صفحه‌ی اصلی (بدون نیاز به باز کردن پنل
+// گزارش) + تغییر نام «پنل ادمین» به «پنل گزارش» + حذف متن ثابت «۴ مدل
+// هوش مصنوعی آماده تحلیل» از بالای صفحه (بی‌ربط به بخش دانلود گزارش بود)
+const FRONTEND_VERSION = 'V.2.4'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -190,6 +193,23 @@ export default function App() {
 
   const [backendVersion, setBackendVersion] = useState(null)
 
+  // V.2.4: دانلود مستقیم کل گزارش مارک‌داون از همین صفحه، بدون نیاز به
+  // باز کردن پنل گزارش و زدن دکمه‌ی «خروجی Markdown» اونجا
+  const [reportDownloading, setReportDownloading] = useState(false)
+  const [reportError, setReportError] = useState('')
+
+  const handleDownloadReport = async () => {
+    setReportError('')
+    setReportDownloading(true)
+    try {
+      await quickDownloadFullReport(API_BASE_URL)
+    } catch (err) {
+      setReportError('دانلود گزارش با خطا مواجه شد. (' + err.message + ')')
+    } finally {
+      setReportDownloading(false)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
     fetch(`${API_BASE_URL}/version`)
@@ -321,9 +341,6 @@ export default function App() {
           </span>
         </div>
         <div className="topbar-status">
-          <span className="dot" />
-          <span>۴ مدل هوش مصنوعی آماده تحلیل</span>
-          <span className="footer-divider"> · </span>
           <a
             href="#admin"
             className="topbar-admin-link"
@@ -333,21 +350,19 @@ export default function App() {
               window.location.reload()
             }}
           >
-            پنل ادمین و گزارش‌ها
+            پنل گزارش
           </a>
           <span className="footer-divider"> · </span>
-          <a
-            href="#admin/demo"
-            className="topbar-admin-link"
-            onClick={(e) => {
-              e.preventDefault()
-              window.location.hash = 'admin/demo'
-              window.location.reload()
-            }}
+          <button
+            type="button"
+            className="topbar-admin-link topbar-download-btn"
+            onClick={handleDownloadReport}
+            disabled={reportDownloading}
           >
-            خروجی گزارش (Markdown)
-          </a>
+            {reportDownloading ? 'در حال دانلود…' : 'دانلود گزارش'}
+          </button>
         </div>
+        {reportError && <p className="error-note topbar-report-error">{reportError}</p>}
       </header>
 
       <main className="main">
@@ -500,20 +515,17 @@ export default function App() {
             window.location.reload()
           }}
         >
-          پنل ادمین و گزارش‌ها
+          پنل گزارش
         </a>
         <span className="footer-divider"> · </span>
-        <a
-          href="#admin/demo"
-          className="footer-admin-link"
-          onClick={(e) => {
-            e.preventDefault()
-            window.location.hash = 'admin/demo'
-            window.location.reload()
-          }}
+        <button
+          type="button"
+          className="footer-admin-link footer-download-btn"
+          onClick={handleDownloadReport}
+          disabled={reportDownloading}
         >
-          خروجی گزارش (Markdown)
-        </a>
+          {reportDownloading ? 'در حال دانلود…' : 'دانلود گزارش'}
+        </button>
       </footer>
     </div>
   )

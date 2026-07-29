@@ -978,15 +978,58 @@ body {
 
 .admin-head {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 16px;
   margin-bottom: 16px;
+}
+
+.admin-head-subtitle {
+  margin: 4px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
 }
 
 .admin-head-actions {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-shrink: 0;
+}
+
+/* V.2.4: هر تفکیک آماری (نسخه/probation/حالت/جهت/ارز) داخل یک بلوک
+   جدا و مشخص، به‌جای پشت سر هم روی صفحه، تا پنل گزارش ساختاریافته‌تر
+   دیده بشه */
+.stats-block {
+  margin-bottom: 20px;
+  padding: 14px 16px 16px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.stats-block .stats-section-title {
+  margin: 0 0 4px;
+}
+
+.stats-block-note {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.9;
+  color: var(--text-muted);
+}
+
+.stats-row-current {
+  background: rgba(45, 212, 167, 0.06);
+}
+
+.current-version-badge {
+  margin-right: 8px;
+  font-size: 10.5px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(45, 212, 167, 0.18);
+  color: var(--long);
 }
 
 .admin-table-wrap {
@@ -1496,6 +1539,33 @@ body {
 
 .topbar-admin-link {
   font-size: 13px;
+}
+
+/* V.2.4: دکمه‌ی «دانلود گزارش» باید دقیقاً شبیه لینک‌های کنارش دیده بشه،
+   با اینکه از نظر HTML یک <button> است نه <a> (چون کاری غیر از ناوبری
+   انجام می‌ده) */
+.topbar-download-btn,
+.footer-download-btn {
+  background: none;
+  border: none;
+  border-bottom: 1px dotted var(--text-muted);
+  padding: 0;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.topbar-download-btn:disabled,
+.footer-download-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+  color: var(--text-muted);
+}
+
+.topbar-report-error {
+  max-width: 1080px;
+  margin: 6px auto 0;
+  padding: 0 20px;
+  font-size: 12px;
 }
 /* ===== واچ‌لیست رصد زنده (فشرده) + سرتیتر سیگنال‌های آماده (اضافه‌شده) ===== */
 

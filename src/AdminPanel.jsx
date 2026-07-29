@@ -1,42 +1,20 @@
 import { authFetch, getToken } from './auth'
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
+// V.2.4: fmtTime/modeLabel/statusLabel/outcomeGroup/computeSummary و
+// exportToMarkdown قبلاً اینجا و هم در App.jsx (برای دانلود سریع) به‌صورت
+// تکراری تعریف شده بودن. حالا هر دو فایل از همون یک نسخه‌ی مشترک در
+// reportExport.js استفاده می‌کنن.
+import {
+  fmtTime,
+  modeLabel,
+  statusLabel,
+  outcomeGroup,
+  computeSummary,
+  exportToMarkdown,
+} from './reportExport'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
-
-function fmtTime(iso) {
-  if (!iso) return '—'
-  try {
-    return new Date(iso).toLocaleString('fa-IR')
-  } catch {
-    return iso
-  }
-}
-
-function modeLabel(mode) {
-  if (mode === 'relaxed') return 'ساده‌گیر'
-  if (mode === 'manual') return 'دستی'
-  return 'سخت‌گیر'
-}
-
-function statusLabel(status) {
-  if (status === 'open') return '⏳ باز'
-  if (status === 'win') return '✅ برد'
-  if (status === 'loss') return '❌ باخت'
-  if (status === 'timeout_win') return '✅ برد (پایان بازه)'
-  if (status === 'timeout_loss') return '❌ باخت (پایان بازه)'
-  if (status === 'manual_win') return '✅ برد (دستی)'
-  if (status === 'manual_loss') return '❌ باخت (دستی)'
-  return status
-}
-
-// گروه‌بندی وضعیت‌های خام برای فیلتر «نتیجه»
-function outcomeGroup(status) {
-  if (status === 'open') return 'open'
-  if (status?.includes('win')) return 'win'
-  if (status?.includes('loss')) return 'loss'
-  return 'other'
-}
 
 function AnalysesTable({ rows }) {
   return (
@@ -135,7 +113,20 @@ function WinRateCell({ winRate }) {
   )
 }
 
-function StatsPanel({ stats }) {
+// یک بخش آماری با عنوان + توضیح اختیاری، برای این‌که تفکیک‌های مختلف
+// (نسخه/probation/حالت/جهت/ارز) به‌جای پشت سر هم افتادن روی صفحه، هرکدوم
+// یک بلوک بصری جدا و مشخص داشته باشن
+function StatsBlock({ title, note, children }) {
+  return (
+    <div className="stats-block">
+      <h3 className="stats-section-title">{title}</h3>
+      {note && <p className="stats-block-note">{note}</p>}
+      {children}
+    </div>
+  )
+}
+
+function StatsPanel({ stats, backendVersion }) {
   if (!stats) return null
 
   return (
@@ -147,7 +138,7 @@ function StatsPanel({ stats }) {
 
       <div className="stats-summary-grid">
         <div className="stats-card">
-          <span className="stats-card-label">Win Rate کلی</span>
+          <span className="stats-card-label">Win Rate کلی (همه‌ی نسخه‌ها با هم)</span>
           <span className="stats-card-value" dir="ltr">
             <WinRateCell winRate={stats.win_rate} />
           </span>
@@ -176,125 +167,136 @@ function StatsPanel({ stats }) {
         </div>
       </div>
 
-      <h3 className="stats-section-title">تفکیک بر اساس نسخه‌ی کد (لحظه‌ی باز شدن معامله)</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>نسخه</th>
-              <th>تعداد</th>
-              <th>برد</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(stats.by_version || []).map((v) => (
-              <tr key={v.version}>
-                <td>{v.version}</td>
-                <td dir="ltr">{v.total}</td>
-                <td dir="ltr">{v.wins}</td>
-                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+      <StatsBlock
+        title="تفکیک بر اساس نسخه‌ی کد (لحظه‌ی باز شدن معامله)"
+        note="مهم‌ترین جدول این صفحه: چون گیت‌ها/آستانه‌ها بین نسخه‌ها عوض شده، Win Rate کلی بالا میانگین چند رژیم متفاوته و به‌تنهایی گمراه‌کننده‌ست — برای قضاوت درباره‌ی وضعیت فعلی سیستم فقط به ردیف نسخه‌ی فعلی نگاه کن."
+      >
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>نسخه</th>
+                <th>تعداد</th>
+                <th>برد</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(stats.by_version || []).map((v) => (
+                <tr key={v.version} className={v.version === backendVersion ? 'stats-row-current' : ''}>
+                  <td>
+                    {v.version}
+                    {v.version === backendVersion && <span className="current-version-badge">فعلی</span>}
+                  </td>
+                  <td dir="ltr">{v.total}</td>
+                  <td dir="ltr">{v.wins}</td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </StatsBlock>
 
-      <h3 className="stats-section-title">تفکیک بر اساس probation (V.1.5)</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>نوع</th>
-              <th>تعداد</th>
-              <th>برد</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(stats.by_probation || {}).map(([k, v]) => (
-              <tr key={k}>
-                <td>{k === 'probation' ? 'تلاش آزمایشی probation' : 'عادی'}</td>
-                <td dir="ltr">{v.total}</td>
-                <td dir="ltr">{v.wins}</td>
-                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+      <StatsBlock title="تفکیک بر اساس probation (V.1.5)">
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>نوع</th>
+                <th>تعداد</th>
+                <th>برد</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {Object.entries(stats.by_probation || {}).map(([k, v]) => (
+                <tr key={k}>
+                  <td>{k === 'probation' ? 'تلاش آزمایشی probation' : 'عادی'}</td>
+                  <td dir="ltr">{v.total}</td>
+                  <td dir="ltr">{v.wins}</td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </StatsBlock>
 
-      <h3 className="stats-section-title">تفکیک بر اساس حالت (سخت‌گیر / ساده‌گیر)</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>حالت</th>
-              <th>تعداد</th>
-              <th>برد</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(stats.by_mode || {}).map(([m, v]) => (
-              <tr key={m}>
-                <td>{modeLabel(m)}</td>
-                <td dir="ltr">{v.total}</td>
-                <td dir="ltr">{v.wins}</td>
-                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+      <StatsBlock title="تفکیک بر اساس حالت (سخت‌گیر / ساده‌گیر)">
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>حالت</th>
+                <th>تعداد</th>
+                <th>برد</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {Object.entries(stats.by_mode || {}).map(([m, v]) => (
+                <tr key={m}>
+                  <td>{modeLabel(m)}</td>
+                  <td dir="ltr">{v.total}</td>
+                  <td dir="ltr">{v.wins}</td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </StatsBlock>
 
-      <h3 className="stats-section-title">تفکیک بر اساس جهت</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>جهت</th>
-              <th>تعداد</th>
-              <th>برد</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {Object.entries(stats.by_direction || {}).map(([dir, v]) => (
-              <tr key={dir}>
-                <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
-                <td dir="ltr">{v.total}</td>
-                <td dir="ltr">{v.wins}</td>
-                <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+      <StatsBlock title="تفکیک بر اساس جهت">
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>جهت</th>
+                <th>تعداد</th>
+                <th>برد</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {Object.entries(stats.by_direction || {}).map(([dir, v]) => (
+                <tr key={dir}>
+                  <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
+                  <td dir="ltr">{v.total}</td>
+                  <td dir="ltr">{v.wins}</td>
+                  <td dir="ltr"><WinRateCell winRate={v.win_rate} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </StatsBlock>
 
-      <h3 className="stats-section-title">تفکیک بر اساس ارز</h3>
-      <div className="admin-table-wrap">
-        <table className="admin-table">
-          <thead>
-            <tr>
-              <th>ارز</th>
-              <th>تعداد</th>
-              <th>برد</th>
-              <th>Win Rate</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(stats.by_symbol || []).map((s) => (
-              <tr key={s.symbol}>
-                <td>{s.symbol}</td>
-                <td dir="ltr">{s.total}</td>
-                <td dir="ltr">{s.wins}</td>
-                <td dir="ltr"><WinRateCell winRate={s.win_rate} /></td>
+      <StatsBlock title="تفکیک بر اساس ارز">
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>ارز</th>
+                <th>تعداد</th>
+                <th>برد</th>
+                <th>Win Rate</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {(stats.by_symbol || []).map((s) => (
+                <tr key={s.symbol}>
+                  <td>{s.symbol}</td>
+                  <td dir="ltr">{s.total}</td>
+                  <td dir="ltr">{s.wins}</td>
+                  <td dir="ltr"><WinRateCell winRate={s.win_rate} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </StatsBlock>
     </div>
   )
 }
@@ -325,14 +327,6 @@ function applyFilters(rows, f) {
     if (f.probation === 'normal' && r.is_probation_trade) return false
     return true
   })
-}
-
-function computeSummary(rows) {
-  const resolved = rows.filter((r) => outcomeGroup(r.status) === 'win' || outcomeGroup(r.status) === 'loss')
-  const wins = resolved.filter((r) => outcomeGroup(r.status) === 'win').length
-  const losses = resolved.length - wins
-  const winRate = resolved.length ? Math.round((wins / resolved.length) * 1000) / 10 : null
-  return { total: rows.length, resolved: resolved.length, wins, losses, winRate }
 }
 
 function exportToExcel(rows, summary) {
@@ -373,41 +367,6 @@ function exportToExcel(rows, summary) {
   XLSX.utils.book_append_sheet(wb, summarySheet, 'خلاصه')
 
   XLSX.writeFile(wb, `demo-trades-${new Date().toISOString().slice(0, 10)}.xlsx`)
-}
-
-function exportToMarkdown(rows, summary, filters) {
-  // V.1.1: ستون امتیاز Confluence اضافه شد تا بشه توزیع واقعی امتیازها رو
-  // دید و تایید کرد که گیت MIN_CONFLUENCE_SCORE (فاز ۱) واقعاً فیلتر می‌کنه یا نه
-  // V.1.5: ستون Probation اضافه شد تا بشه دقیقاً دید کدوم معامله از طریق
-  // تلاش آزمایشی probation باز شده، بدون نیاز به حدس‌زدن از روی زمان دیپلوی
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation', 'نسخه']
-  let md = `# گزارش معاملات دمو\n\n`
-  md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
-
-  const activeFilters = []
-  if (filters.from) activeFilters.push(`از ${filters.from}`)
-  if (filters.to) activeFilters.push(`تا ${filters.to}`)
-  if (filters.outcome !== 'all') activeFilters.push(`نتیجه: ${filters.outcome}`)
-  if (filters.mode !== 'all') activeFilters.push(`حالت: ${filters.mode}`)
-  if (filters.direction !== 'all') activeFilters.push(`جهت: ${filters.direction}`)
-  if (filters.symbol) activeFilters.push(`نماد شامل: ${filters.symbol}`)
-  if (activeFilters.length) md += `فیلترهای فعال: ${activeFilters.join(' | ')}\n\n`
-
-  md += `**تعداد کل:** ${summary.total} — **بسته‌شده:** ${summary.resolved} — **برد:** ${summary.wins} — **باخت:** ${summary.losses} — **Win Rate:** ${summary.winRate ?? '—'}%\n\n`
-
-  md += `| ${headers.join(' | ')} |\n`
-  md += `| ${headers.map(() => '---').join(' | ')} |\n`
-  rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} | ${r.app_version ?? '—'} |\n`
-  })
-
-  const blob = new Blob([md], { type: 'text/markdown;charset=utf-8' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = `demo-trades-${new Date().toISOString().slice(0, 10)}.md`
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 function FilterBar({ filters, setFilters, summary, onExportExcel, onExportMarkdown }) {
@@ -512,6 +471,23 @@ export default function AdminPanel() {
   // داده‌ی فیلترشده کار می‌کنه — فقط نمایش جدول صفحه‌بندی شده.
   const PAGE_SIZE = 100
   const [page, setPage] = useState(0)
+  // V.2.4: نسخه‌ی در حال اجرای فعلی بک‌اند، برای هایلایت‌کردن ردیف
+  // متناظرش در جدول «تفکیک بر اساس نسخه‌ی کد» — بدون این، کاربر باید
+  // دستی APP_VERSION رو با یکی از ردیف‌های جدول تطبیق بده
+  const [backendVersion, setBackendVersion] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch(`${API_BASE_URL}/version`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.version) setBackendVersion(data.version)
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const loadData = async () => {
     setStatus('loading')
@@ -568,7 +544,7 @@ export default function AdminPanel() {
       <div className="admin-gate">
         <h2>نیاز به ورود</h2>
         <p style={{ color: 'var(--text-muted)', fontSize: 13.5, marginBottom: 16 }}>
-          برای دیدن پنل ادمین، اول باید از صفحه‌ی اصلی با رمز سایت وارد بشی.
+          برای دیدن پنل گزارش، اول باید از صفحه‌ی اصلی با رمز سایت وارد بشی.
         </p>
         <a
           className="admin-back-link"
@@ -588,7 +564,17 @@ export default function AdminPanel() {
   return (
     <div className="admin-panel">
       <div className="admin-head">
-        <h2>پنل ادمین</h2>
+        <div>
+          <h2>پنل گزارش</h2>
+          <p className="admin-head-subtitle">
+            آمار Win Rate، سوابق تحلیل‌ها و تاریخچه‌ی معاملات دمو —{' '}
+            {backendVersion ? (
+              <span dir="ltr">نسخه‌ی فعلی سیستم: {backendVersion}</span>
+            ) : (
+              'در حال بررسی نسخه‌ی فعلی سیستم…'
+            )}
+          </p>
+        </div>
         <div className="admin-head-actions">
           <button className="btn-mini" onClick={loadData}>
             بروزرسانی
@@ -601,20 +587,20 @@ export default function AdminPanel() {
 
       <div className="tabs">
         <button className={`tab ${tab === 'stats' ? 'tab-active' : ''}`} onClick={() => setTab('stats')}>
-          آمار Win Rate
+          📊 آمار Win Rate
         </button>
         <button className={`tab ${tab === 'analyses' ? 'tab-active' : ''}`} onClick={() => setTab('analyses')}>
-          سوابق تحلیل‌ها ({analyses.length})
+          🗂 سوابق تحلیل‌ها ({analyses.length})
         </button>
         <button className={`tab ${tab === 'demo' ? 'tab-active' : ''}`} onClick={() => setTab('demo')}>
-          معاملات دمو ({demoTrades.length})
+          💹 معاملات دمو ({demoTrades.length})
         </button>
       </div>
 
       {status === 'loading' && <div className="watchlist-status">در حال بارگذاری…</div>}
       {status === 'error' && <div className="watchlist-status">خطا در دریافت اطلاعات</div>}
 
-      {status === 'ready' && tab === 'stats' && <StatsPanel stats={stats} />}
+      {status === 'ready' && tab === 'stats' && <StatsPanel stats={stats} backendVersion={backendVersion} />}
       {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
       {status === 'ready' && tab === 'demo' && (
         <>
