@@ -337,7 +337,12 @@ export default function App() {
                 : `فرانت‌اند: ${FRONTEND_VERSION} — بک‌اند: در حال بررسی...`
             }
           >
-            {backendVersion || FRONTEND_VERSION}
+            {/* V.2.4-fix: قبلاً اینجا موقتاً FRONTEND_VERSION نشون داده می‌شد تا
+                جواب GET /version برسه — چون فرانت و بک‌اند شماره‌نسخه‌ی جدا
+                دارن، این باعث یک فلش کوتاه (مثلاً V.2.4 بعد V.2.3) بعد از هر
+                رفرش می‌شد. الان تا رسیدن نسخه‌ی واقعی بک‌اند فقط یک نشانگر
+                خنثی نشون داده می‌شه، نه یه عدد اشتباه. */}
+            {backendVersion || '···'}
           </span>
         </div>
         <div className="topbar-status">
