@@ -53,8 +53,26 @@ export function computeSummary(rows) {
 // ساخت متن کامل گزارش مارک‌داون از یک لیست معامله + خلاصه‌ی آماری‌اش.
 // filters اختیاریه — وقتی از دکمه‌ی «دانلود سریع» بالای صفحه استفاده
 // می‌شه، فیلتری اعمال نشده پس این پارامتر خالی می‌مونه.
+// V.2.5 (تشخیصی): تفکیک نوع خروج معامله — چون هدف اصلی (`target`) و
+// حد ضرر (`stop_loss`) در دیتابیس پویا آپدیت می‌شن (مکانیزم breakeven/
+// profit-lock در demo_trade.py، وقتی پیشرفت به ۷۰٪ فاصله‌ی هدف برسه،
+// حد ضرر به ۴۰٪ همون فاصله قفل می‌شه)، یک معامله‌ی «برد» می‌تونه یا با
+// رسیدن کامل به هدف (full_tp) بسته شده باشه، یا با خوردن به همون حد
+// ضررِ جابه‌جاشده (profit_lock — سود کوچیک‌تر از هدف اصلی). این دو حالت
+// قبلاً هر دو فقط «برد» نشون داده می‌شدن و قابل‌تفکیک نبودن. exit_type
+// از قبل در Supabase ذخیره می‌شه؛ این تغییر فقط نمایشش می‌ده، هیچ منطقی
+// عوض نمی‌کنه.
+function exitTypeLabel(exitType) {
+  if (exitType === 'full_tp') return 'هدف کامل'
+  if (exitType === 'profit_lock') return 'قفل سود (زودتر از هدف)'
+  if (exitType === 'sl') return 'حد ضرر'
+  if (exitType === 'timeout') return 'پایان بازه'
+  if (exitType === 'manual_win' || exitType === 'manual_close') return 'دستی'
+  return exitType ?? '—'
+}
+
 export function buildMarkdownReport(rows, summary, filters = null) {
-  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation', 'نسخه']
+  const headers = ['زمان', 'نماد', 'جهت', 'حالت', 'ورود', 'هدف', 'حد ضرر', 'وضعیت', 'نوع خروج', 'خروج', 'سود/زیان ($)', 'درصد خالص', 'امتیاز Confluence', 'Probation', 'نسخه']
   let md = `# گزارش معاملات دمو\n\n`
   md += `تاریخ تولید گزارش: ${new Date().toLocaleString('fa-IR')}\n\n`
 
@@ -74,7 +92,7 @@ export function buildMarkdownReport(rows, summary, filters = null) {
   md += `| ${headers.join(' | ')} |\n`
   md += `| ${headers.map(() => '---').join(' | ')} |\n`
   rows.forEach((r) => {
-    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} | ${r.app_version ?? '—'} |\n`
+    md += `| ${fmtTime(r.opened_at)} | ${r.symbol} | ${r.direction === 'long' ? 'لانگ' : 'شورت'} | ${modeLabel(r.mode)} | ${r.entry} | ${r.target} | ${r.stop_loss} | ${statusLabel(r.status)} | ${exitTypeLabel(r.exit_type)} | ${r.exit_price ?? '—'} | ${r.realized_pnl ?? '—'} | ${r.realized_pnl_percent ?? '—'} | ${r.confluence_score ?? '—'} | ${r.is_probation_trade ? 'آزمایشی' : 'عادی'} | ${r.app_version ?? '—'} |\n`
   })
 
   return md
