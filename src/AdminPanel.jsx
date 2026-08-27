@@ -507,22 +507,18 @@ export default function AdminPanel() {
   const loadData = async () => {
     setStatus('loading')
     try {
+      // V.2.9: سبک‌سازی — دیگر کل تاریخچه را در لود اولیه نمی‌کشیم.
+      // فقط آمار تجمیعی + ۳۰۰ معامله‌ی اخیر. دانلود کامل فقط با دکمه Export.
       const [analysesRes, demoRes, statsRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/history?limit=30`),
-        // V.2.4: قبلاً اینجا /demo-trade/history?limit=1000 صدا زده می‌شد
-        // که سقف ثابت ۱۰۰۰ داشت و قدیمی‌ترین معاملات رو از گزارش/فیلتر/
-        // خروجی حذف می‌کرد. /demo-trade/export سقف نداره (کل تاریخچه رو
-        // با صفحه‌بندی داخلی سمت بک‌اند می‌کشه). نمایش جدول همچنان
-        // صفحه‌بندی‌شده (۱۰۰ تا ۱۰۰) انجام می‌شه، ولی فیلتر و خروجی
-        // Markdown/Excel روی کل داده کار می‌کنن.
-        authFetch(`${API_BASE_URL}/demo-trade/export`),
+        authFetch(`${API_BASE_URL}/history?limit=20`),
+        authFetch(`${API_BASE_URL}/demo-trade/history?limit=300&offset=0`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
       const demoData = await demoRes.json()
       const statsData = await statsRes.json()
       setAnalyses(analysesData.analyses || [])
-      setDemoTrades(demoData.trades || [])
+      setDemoTrades(demoData.trades || demoData || [])
       setStats(statsData)
       setStatus('ready')
     } catch {
@@ -626,7 +622,18 @@ export default function AdminPanel() {
             setFilters={setFilters}
             summary={filteredSummary}
             onExportExcel={() => exportToExcel(filteredDemoTrades, filteredSummary)}
-            onExportMarkdown={() => exportToMarkdown(filteredDemoTrades, filteredSummary, filters)}
+            onExportMarkdown={async () => {
+              // V.2.9: فقط هنگام دانلود، کل داده را بکش
+              try {
+                const res = await authFetch(`${API_BASE_URL}/demo-trade/export`)
+                const data = await res.json()
+                const all = data.trades || []
+                const filtered = applyFilters(all, filters)
+                exportToMarkdown(filtered, computeSummary(filtered), filters)
+              } catch (e) {
+                exportToMarkdown(filteredDemoTrades, filteredSummary, filters)
+              }
+            }}
           />
           <div className="report-pagination">
             <button
