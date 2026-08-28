@@ -4,17 +4,19 @@ import { useEffect, useState, useRef } from 'react'
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
 /**
- * V.2.10: پنل وضعیت معامله واقعی Toobit
+ * V.2.10.1: پنل وضعیت معامله واقعی Toobit
  * - به‌روزرسانی خودکار هر ۳۰ ثانیه وقتی باز است
+ * - بازخورد واضح روی دکمه بروزرسانی (loading + «به‌روز شد»)
  * - نمایش پوزیشن‌های ردیابی‌شده با پیشرفت و سود لحظه‌ای
- * - مدیریت خروج کاملاً سمت سرور انجام می‌شود
  */
 export default function RealTradePanel() {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
+  const [flash, setFlash] = useState(null) // 'ok' | null
   const timerRef = useRef(null)
+  const flashTimerRef = useRef(null)
 
   const load = async (silent = false) => {
     if (!silent) setLoading(true)
@@ -24,8 +26,14 @@ export default function RealTradePanel() {
       if (!res.ok) throw new Error('خطا در دریافت وضعیت')
       const data = await res.json()
       setStatus(data)
+      if (!silent) {
+        setFlash('ok')
+        if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
+        flashTimerRef.current = setTimeout(() => setFlash(null), 2000)
+      }
     } catch (e) {
       setErr(e.message || 'خطا')
+      setFlash(null)
     } finally {
       if (!silent) setLoading(false)
     }
@@ -38,6 +46,7 @@ export default function RealTradePanel() {
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
     }
   }, [open])
 
@@ -202,21 +211,28 @@ export default function RealTradePanel() {
                 <code style={{ color: '#9ad' }}>REAL_TRADING_ENABLED=true</code> در Secrets بک‌اند.
                 حداکثر {status.max_open_positions} پوزیشن همزمان · فقط سیگنال ≥ {status.min_confluence}
               </div>
-              <button
-                type="button"
-                onClick={() => load()}
-                style={{
-                  marginTop: 10,
-                  background: '#1a3040',
-                  border: '1px solid #2a4a5a',
-                  color: '#cde',
-                  borderRadius: 8,
-                  padding: '6px 12px',
-                  cursor: 'pointer',
-                }}
-              >
-                بروزرسانی وضعیت
-              </button>
+
+              <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => load()}
+                  disabled={loading}
+                  style={{
+                    background: loading ? '#152030' : '#1a3040',
+                    border: '1px solid #2a4a5a',
+                    color: loading ? '#889' : '#cde',
+                    borderRadius: 8,
+                    padding: '6px 12px',
+                    cursor: loading ? 'wait' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                  }}
+                >
+                  {loading ? 'در حال بروزرسانی…' : 'بروزرسانی وضعیت'}
+                </button>
+                {flash === 'ok' && !loading && (
+                  <span style={{ color: '#2DD4A7', fontSize: 12 }}>✓ به‌روز شد</span>
+                )}
+              </div>
             </>
           )}
         </div>
