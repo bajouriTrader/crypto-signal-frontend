@@ -579,18 +579,22 @@ export default function AdminPanel() {
         authFetch(`${API_BASE_URL}/history?limit=20`),
         authFetch(`${API_BASE_URL}/demo-trade/history?limit=300&offset=0`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
-        authFetch(`${API_BASE_URL}/real-trade/stats`),
+        authFetch(`${API_BASE_URL}/real-trade/stats`).catch(() => null),
       ])
-      const analysesData = await analysesRes.json()
-      const demoData = await demoRes.json()
-      const statsData = await statsRes.json()
-      const realData = realRes.ok ? await realRes.json() : null
+      const analysesData = analysesRes.ok ? await analysesRes.json() : {}
+      const demoData = demoRes.ok ? await demoRes.json() : {}
+      const statsData = statsRes.ok ? await statsRes.json() : null
+      let realData = null
+      try {
+        if (realRes && realRes.ok) realData = await realRes.json()
+      } catch (_) {}
       setAnalyses(analysesData.analyses || [])
       setDemoTrades(demoData.trades || demoData || [])
       setStats(statsData)
       setRealStats(realData)
-      setStatus('ready')
-    } catch {
+      setStatus(statsData ? 'ready' : 'error')
+    } catch (e) {
+      console.error('admin loadData', e)
       setStatus('error')
     }
   }
@@ -677,8 +681,8 @@ export default function AdminPanel() {
         </button>
       </div>
 
-      {status === 'loading' && <div className="watchlist-status">در حال بارگذاری…</div>}
-      {status === 'error' && <div className="watchlist-status">خطا در دریافت اطلاعات</div>}
+      {status === 'loading' && <div className="watchlist-status" style={{padding:20,color:'#9ab'}}>در حال بارگذاری گزارش…</div>}
+      {status === 'error' && <div className="watchlist-status" style={{padding:20,color:'#FF5C72'}}>خطا در دریافت اطلاعات — دکمه بروزرسانی را بزنید</div>}
 
       {status === 'ready' && tab === 'stats' && (
         <StatsPanel stats={stats} backendVersion={backendVersion} breakeven={breakevenWinRate} realStats={realStats} />

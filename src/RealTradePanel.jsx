@@ -251,7 +251,7 @@ export default function RealTradePanel() {
                       <div style={{ fontSize: 11, color: '#778' }} dir="ltr">
                         progress {t.progress != null ? `${Math.round(t.progress * 100)}%` : '—'} ·{' '}
                         {t.elapsed_sec != null ? `${Math.floor(t.elapsed_sec / 60)}m` : ''}
-                        {t.score != null ? ` · score ${t.score}` : ''}
+                        {t.score != null ? ` · score ${t.score}` : ''}{t.recovered ? ' · بازیابی‌شده' : ''}
                       </div>
                     </div>
                   ))}
