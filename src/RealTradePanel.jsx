@@ -1,20 +1,23 @@
 import { authFetch } from './auth'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
 /**
- * V.2.9: پنل فشرده وضعیت معامله واقعی Toobit
- * فقط خواندنی — فعال/غیرفعال بودن از Secrets بک‌اند کنترل می‌شود.
+ * V.2.10: پنل وضعیت معامله واقعی Toobit
+ * - به‌روزرسانی خودکار هر ۳۰ ثانیه وقتی باز است
+ * - نمایش پوزیشن‌های ردیابی‌شده با پیشرفت و سود لحظه‌ای
+ * - مدیریت خروج کاملاً سمت سرور انجام می‌شود
  */
 export default function RealTradePanel() {
   const [open, setOpen] = useState(false)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
+  const timerRef = useRef(null)
 
-  const load = async () => {
-    setLoading(true)
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true)
     setErr(null)
     try {
       const res = await authFetch(`${API_BASE_URL}/real-trade/status`)
@@ -24,13 +27,22 @@ export default function RealTradePanel() {
     } catch (e) {
       setErr(e.message || 'خطا')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }
 
   useEffect(() => {
-    if (open) load()
+    if (open) {
+      load()
+      timerRef.current = setInterval(() => load(true), 30000)
+    }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current)
+    }
   }, [open])
+
+  const tracked = status?.tracked || []
+  const mgr = status?.manager || {}
 
   return (
     <div className="real-trade-wrap" style={{ margin: '12px 0' }}>
@@ -56,6 +68,11 @@ export default function RealTradePanel() {
         ) : status ? (
           <span style={{ color: '#888', marginRight: 8 }}>○ خاموش</span>
         ) : null}
+        {status?.open_positions > 0 && (
+          <span style={{ color: '#E8A94A', marginRight: 8 }}>
+            {status.open_positions} باز
+          </span>
+        )}
       </button>
 
       {open && (
@@ -71,9 +88,9 @@ export default function RealTradePanel() {
             lineHeight: 1.7,
           }}
         >
-          {loading && <div>در حال بارگذاری…</div>}
+          {loading && !status && <div>در حال بارگذاری…</div>}
           {err && <div style={{ color: '#FF5C72' }}>{err}</div>}
-          {status && !loading && (
+          {status && (
             <>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div>
@@ -107,6 +124,79 @@ export default function RealTradePanel() {
                   <strong dir="ltr">{status.daily_loss_limit} USDT</strong>
                 </div>
               </div>
+
+              {mgr.profit_lock_trigger != null && (
+                <div
+                  style={{
+                    marginTop: 12,
+                    padding: '8px 10px',
+                    borderRadius: 8,
+                    background: '#0a1a14',
+                    border: '1px solid #1a3a2a',
+                    fontSize: 12,
+                    color: '#8cba9e',
+                  }}
+                >
+                  مدیریت خودکار فعال: قفل سود از{' '}
+                  <strong dir="ltr">{Math.round((mgr.profit_lock_trigger || 0) * 100)}%</strong> پیشرفت
+                  به هدف · حداقل سود{' '}
+                  <strong dir="ltr">{mgr.min_profit_pct}%</strong> · سقف نگهداری{' '}
+                  <strong dir="ltr">{Math.round((mgr.max_hold_seconds || 0) / 3600)}h</strong>
+                  <br />
+                  برنامه خودش هر {mgr.interval_seconds || 45} ثانیه پوزیشن‌ها را چک و در صورت نیاز می‌بندد.
+                </div>
+              )}
+
+              {tracked.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ color: '#8899aa', marginBottom: 6 }}>پوزیشن‌های ردیابی‌شده:</div>
+                  {tracked.map((t) => (
+                    <div
+                      key={t.symbol}
+                      style={{
+                        padding: '8px 10px',
+                        marginBottom: 6,
+                        borderRadius: 8,
+                        background: '#121c28',
+                        border: '1px solid #243444',
+                        display: 'grid',
+                        gridTemplateColumns: '1fr auto',
+                        gap: 4,
+                      }}
+                    >
+                      <div>
+                        <strong>{t.symbol}</strong>{' '}
+                        <span style={{ color: t.direction === 'long' ? '#2DD4A7' : '#FF5C72' }}>
+                          {t.direction === 'long' ? 'لانگ' : 'شورت'}
+                        </span>
+                        <span style={{ color: '#667', marginRight: 6 }} dir="ltr">
+                          @{Number(t.entry).toPrecision(6)}
+                        </span>
+                      </div>
+                      <div dir="ltr" style={{ textAlign: 'left' }}>
+                        {t.unrealized_pct != null ? (
+                          <strong
+                            style={{
+                              color: t.unrealized_pct >= 0 ? '#2DD4A7' : '#FF5C72',
+                            }}
+                          >
+                            {t.unrealized_pct >= 0 ? '+' : ''}
+                            {Number(t.unrealized_pct).toFixed(2)}%
+                          </strong>
+                        ) : (
+                          '—'
+                        )}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#778' }} dir="ltr">
+                        progress {t.progress != null ? `${Math.round(t.progress * 100)}%` : '—'} ·{' '}
+                        {t.elapsed_sec != null ? `${Math.floor(t.elapsed_sec / 60)}m` : ''}
+                        {t.score != null ? ` · score ${t.score}` : ''}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div style={{ marginTop: 10, color: '#667788', fontSize: 12 }}>
                 فعال‌سازی فقط با تنظیم{' '}
                 <code style={{ color: '#9ad' }}>REAL_TRADING_ENABLED=true</code> در Secrets بک‌اند.
@@ -114,7 +204,7 @@ export default function RealTradePanel() {
               </div>
               <button
                 type="button"
-                onClick={load}
+                onClick={() => load()}
                 style={{
                   marginTop: 10,
                   background: '#1a3040',
