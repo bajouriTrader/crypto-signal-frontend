@@ -252,6 +252,11 @@ export default function RealTradePanel() {
                         progress {t.progress != null ? `${Math.round(t.progress * 100)}%` : '—'} ·{' '}
                         {t.elapsed_sec != null ? `${Math.floor(t.elapsed_sec / 60)}m` : ''}
                         {t.score != null ? ` · score ${t.score}` : ''}{t.recovered ? ' · بازیابی‌شده' : ''}
+                        {t.sl_on_exchange === true
+                          ? ' · SL روی صرافی ✓'
+                          : t.sl_on_exchange === false
+                            ? ' · ⚠ SL روی صرافی تأیید نشد'
+                            : ''}
                       </div>
                     </div>
                   ))}
