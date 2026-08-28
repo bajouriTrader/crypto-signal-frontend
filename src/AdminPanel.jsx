@@ -129,11 +129,13 @@ function StatsBlock({ title, note, children }) {
   )
 }
 
-function StatsPanel({ stats, backendVersion, breakeven }) {
-  if (!stats) return null
+function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
+  if (!stats) {
+    return <div style={{ padding: 20, color: '#9ab' }}>آمار هنوز بارگذاری نشده.</div>
+  }
 
   return (
-    <div>
+    <div style={{ color: '#e0e8f0' }}>
       <div className="breakeven-note">
         نقطه‌ی سر‌به‌سر با نسبت ریسک/ریوارد فعلی سیستم: <strong dir="ltr">{breakeven}%</strong> —
         زیر این خط یعنی حتی با وین‌ریت مثبت، در مجموع ضرر می‌ده.
@@ -646,10 +648,10 @@ export default function AdminPanel() {
   }
 
   return (
-    <div className="admin-panel">
+    <div className="admin-panel" style={{ minHeight: '100vh', color: '#e0e8f0', padding: '12px 16px' }}>
       <div className="admin-head">
         <div>
-          <h2>پنل گزارش</h2>
+          <h2 style={{ color: '#e8f0ff' }}>پنل گزارش</h2>
           <p className="admin-head-subtitle">
             آمار Win Rate، سوابق تحلیل‌ها و تاریخچه‌ی معاملات دمو —{' '}
             {backendVersion ? (
