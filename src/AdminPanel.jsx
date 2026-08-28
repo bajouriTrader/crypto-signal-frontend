@@ -681,7 +681,7 @@ export default function AdminPanel() {
       {status === 'error' && <div className="watchlist-status">خطا در دریافت اطلاعات</div>}
 
       {status === 'ready' && tab === 'stats' && (
-        <StatsPanel stats={stats} backendVersion={backendVersion} breakeven={breakevenWinRate} />
+        <StatsPanel stats={stats} backendVersion={backendVersion} breakeven={breakevenWinRate} realStats={realStats} />
       )}
       {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
       {status === 'ready' && tab === 'demo' && (

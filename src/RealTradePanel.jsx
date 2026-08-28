@@ -156,6 +156,58 @@ export default function RealTradePanel() {
                 </div>
               )}
 
+
+              {/* پوزیشن‌های باز صرافی (حتی اگر بعد از ری‌استارت از tracked جا مانده باشند) */}
+              {Array.isArray(status.positions) && status.positions.length > 0 && tracked.length === 0 && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ color: '#8899aa', marginBottom: 6 }}>پوزیشن باز روی صرافی:</div>
+                  {status.positions.map((p, idx) => {
+                    const sym = String(p.symbol || '').replace('-SWAP-USDT', '').replace('USDT', '')
+                    const side = String(p.side || '').toUpperCase()
+                    const isLong = side.includes('LONG') || Number(p.position || p.positionAmt || 0) > 0
+                    const upnl = Number(p.unrealizedPnL || 0)
+                    const entry = p.avgPrice || p.entryPrice
+                    const last = p.lastPrice || p.markPrice
+                    return (
+                      <div
+                        key={sym + idx}
+                        style={{
+                          padding: '8px 10px',
+                          marginBottom: 6,
+                          borderRadius: 8,
+                          background: '#121c28',
+                          border: '1px solid #243444',
+                          display: 'grid',
+                          gridTemplateColumns: '1fr auto',
+                          gap: 4,
+                        }}
+                      >
+                        <div>
+                          <strong>{sym}</strong>{' '}
+                          <span style={{ color: isLong ? '#2DD4A7' : '#FF5C72' }}>
+                            {isLong ? 'لانگ' : 'شورت'}
+                          </span>
+                          <span style={{ color: '#667', marginRight: 6 }} dir="ltr">
+                            @{entry}
+                          </span>
+                        </div>
+                        <div dir="ltr" style={{ textAlign: 'left' }}>
+                          <strong style={{ color: upnl >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                            {upnl >= 0 ? '+' : ''}{upnl.toFixed(4)} USDT
+                          </strong>
+                        </div>
+                        <div style={{ fontSize: 11, color: '#778' }} dir="ltr">
+                          last {last} · lev {p.leverage || '—'}x
+                        </div>
+                      </div>
+                    )
+                  })}
+                  <div style={{ fontSize: 11, color: '#667', marginTop: 4 }}>
+                    بعد از ری‌استارت سرور، جزئیات قفل‌سود تا همگام‌سازی مجدد از روی صرافی خوانده می‌شود.
+                  </div>
+                </div>
+              )}
+
               {tracked.length > 0 && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ color: '#8899aa', marginBottom: 6 }}>پوزیشن‌های ردیابی‌شده:</div>
