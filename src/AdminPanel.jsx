@@ -145,6 +145,71 @@ function StatsPanel({ stats, backendVersion, breakeven }) {
         )}
       </div>
 
+      {/* V.2.10.1: آمار ریل جدا از دمو */}
+      {realStats && (
+        <div className="stats-block" style={{ marginBottom: 16, border: '1px solid #1a3a2a', borderRadius: 12, padding: 12, background: '#0a1612' }}>
+          <h3 style={{ margin: '0 0 8px', color: '#2DD4A7', fontSize: 15 }}>معاملات واقعی Toobit (جدا از دمو)</h3>
+          <p style={{ margin: '0 0 10px', color: '#8cba9e', fontSize: 12 }}>
+            این بخش فقط پوزیشن‌های ریل را نشان می‌دهد و با جدول نسخه‌های دمو قاطی نیست.
+            {realStats.app_version ? ` · نسخه بک‌اند: ${realStats.app_version}` : ''}
+            {realStats.source ? ` · منبع: ${realStats.source === 'memory' ? 'حافظه سرور' : 'دیتابیس'}` : ''}
+          </p>
+          <div className="stats-summary-grid">
+            <div className="stats-card">
+              <span className="stats-card-label">Win Rate ریل</span>
+              <span className="stats-card-value" dir="ltr">
+                {realStats.win_rate != null ? `${realStats.win_rate}%` : '—'}
+              </span>
+            </div>
+            <div className="stats-card">
+              <span className="stats-card-label">بسته / باز</span>
+              <span className="stats-card-value" dir="ltr">{realStats.closed ?? 0} / {realStats.open ?? 0}</span>
+            </div>
+            <div className="stats-card">
+              <span className="stats-card-label">برد / باخت</span>
+              <span className="stats-card-value" dir="ltr">{realStats.wins ?? 0} / {realStats.losses ?? 0}</span>
+            </div>
+            <div className="stats-card">
+              <span className="stats-card-label">PnL تقریبی</span>
+              <span className="stats-card-value" dir="ltr" style={{ color: (realStats.total_pnl_usdt || 0) >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                {(realStats.total_pnl_usdt || 0) >= 0 ? '+' : ''}{Number(realStats.total_pnl_usdt || 0).toFixed(3)} USDT
+              </span>
+            </div>
+          </div>
+          {Array.isArray(realStats.recent) && realStats.recent.length > 0 && (
+            <div className="admin-table-wrap" style={{ marginTop: 10 }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>نماد</th>
+                    <th>جهت</th>
+                    <th>وضعیت</th>
+                    <th>دلیل خروج</th>
+                    <th>PnL</th>
+                    <th>امتیاز</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {realStats.recent.slice(0, 15).map((r, i) => (
+                    <tr key={`${r.symbol}-${i}`}>
+                      <td>{r.symbol}</td>
+                      <td>{r.direction === 'long' ? 'لانگ' : r.direction === 'short' ? 'شورت' : r.direction}</td>
+                      <td>{r.status}</td>
+                      <td>{r.exit_reason || '—'}</td>
+                      <td dir="ltr" style={{ color: (r.approx_pnl || 0) >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                        {r.approx_pnl != null ? Number(r.approx_pnl).toFixed(4) : '—'}
+                      </td>
+                      <td dir="ltr">{r.score ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+          {realStats.note && <p style={{ marginTop: 8, fontSize: 11, color: '#667' }}>{realStats.note}</p>}
+        </div>
+      )}
+
       <div className="stats-summary-grid">
         <div className="stats-card">
           <span className="stats-card-label">Win Rate کلی (همه‌ی نسخه‌ها با هم)</span>
@@ -488,6 +553,7 @@ export default function AdminPanel() {
   // میانگین معاملات گذشته) — تا وقتی جواب بک‌اند نرسیده مقدار پیش‌فرض
   // نمایش داده می‌شه
   const [breakevenWinRate, setBreakevenWinRate] = useState(DEFAULT_BREAKEVEN_WIN_RATE)
+  const [realStats, setRealStats] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -509,17 +575,20 @@ export default function AdminPanel() {
     try {
       // V.2.9: سبک‌سازی — دیگر کل تاریخچه را در لود اولیه نمی‌کشیم.
       // فقط آمار تجمیعی + ۳۰۰ معامله‌ی اخیر. دانلود کامل فقط با دکمه Export.
-      const [analysesRes, demoRes, statsRes] = await Promise.all([
+      const [analysesRes, demoRes, statsRes, realRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/history?limit=20`),
         authFetch(`${API_BASE_URL}/demo-trade/history?limit=300&offset=0`),
         authFetch(`${API_BASE_URL}/demo-trade/stats`),
+        authFetch(`${API_BASE_URL}/real-trade/stats`),
       ])
       const analysesData = await analysesRes.json()
       const demoData = await demoRes.json()
       const statsData = await statsRes.json()
+      const realData = realRes.ok ? await realRes.json() : null
       setAnalyses(analysesData.analyses || [])
       setDemoTrades(demoData.trades || demoData || [])
       setStats(statsData)
+      setRealStats(realData)
       setStatus('ready')
     } catch {
       setStatus('error')
