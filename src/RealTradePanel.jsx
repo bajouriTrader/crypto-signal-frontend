@@ -10,7 +10,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
  * - نمایش پوزیشن‌های ردیابی‌شده با پیشرفت و سود لحظه‌ای
  */
 export default function RealTradePanel() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(true)
   const [status, setStatus] = useState(null)
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
@@ -40,15 +40,13 @@ export default function RealTradePanel() {
   }
 
   useEffect(() => {
-    if (open) {
-      load()
-      timerRef.current = setInterval(() => load(true), 30000)
-    }
+    load(true)
+    timerRef.current = setInterval(() => load(true), 30000)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
     }
-  }, [open])
+  }, [])
 
   const tracked = status?.tracked || []
   const mgr = status?.manager || {}
@@ -260,6 +258,51 @@ export default function RealTradePanel() {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+
+              {(status.recent_closed || []).length > 0 && (
+                <div style={{ marginTop: 14 }}>
+                  <div style={{ color: '#8899aa', marginBottom: 6, fontWeight: 600 }}>
+                    ۵ معاملهٔ اخیر بسته‌شده (صرافی)
+                  </div>
+                  {(status.recent_closed || []).slice(0, 5).map((r, i) => {
+                    const pnl = Number(r.approx_pnl || 0)
+                    const sym = String(r.symbol || '').replace('-SWAP-USDT', '')
+                    const dir = String(r.direction || '').toLowerCase()
+                    return (
+                      <div
+                        key={String(sym) + i + String(r.exit_price || '')}
+                        style={{
+                          padding: '7px 10px',
+                          marginBottom: 5,
+                          borderRadius: 8,
+                          background: '#121c28',
+                          border: '1px solid #243444',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          fontSize: 12,
+                        }}
+                      >
+                        <span>
+                          <strong>{sym}</strong>{' '}
+                          <span style={{ color: dir === 'long' ? '#2DD4A7' : '#FF5C72' }}>
+                            {dir === 'long' ? 'لانگ' : 'شورت'}
+                          </span>
+                          <span style={{ color: '#667', marginRight: 6 }} dir="ltr">
+                            {r.entry} → {r.exit_price}
+                          </span>
+                        </span>
+                        <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                          {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} $
+                        </strong>
+                      </div>
+                    )
+                  })}
+                  <div style={{ fontSize: 11, color: '#667' }}>
+                    منبع: تاریخچه Toobit — با موجودی واقعی هم‌خوان است.
+                  </div>
                 </div>
               )}
 
