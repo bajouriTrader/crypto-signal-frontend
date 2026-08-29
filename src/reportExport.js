@@ -116,7 +116,8 @@ export function exportToMarkdown(rows, summary, filters) {
 // کل تاریخچه‌ی معاملات دمو رو از بک‌اند می‌گیره (بدون فیلتر) — همون
 // endpointی که پنل گزارش هم برای خروجی کامل استفاده می‌کنه.
 export async function fetchDemoTrades(apiBaseUrl) {
-  const res = await authFetch(`${apiBaseUrl}/demo-trade/export`)
+  // فقط نسخه‌های اخیر + سقف ۸۰۰ ردیف → دانلود سریع‌تر
+  const res = await authFetch(`${apiBaseUrl}/demo-trade/export?limit=800&current_only=true`)
   if (!res.ok) throw new Error(`خطای سرور (کد ${res.status})`)
   const data = await res.json()
   return data.trades || []

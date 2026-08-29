@@ -578,9 +578,9 @@ export default function AdminPanel() {
       // V.2.9: سبک‌سازی — دیگر کل تاریخچه را در لود اولیه نمی‌کشیم.
       // فقط آمار تجمیعی + ۳۰۰ معامله‌ی اخیر. دانلود کامل فقط با دکمه Export.
       const [analysesRes, demoRes, statsRes, realRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/history?limit=20`),
-        authFetch(`${API_BASE_URL}/demo-trade/history?limit=300&offset=0`),
-        authFetch(`${API_BASE_URL}/demo-trade/stats`),
+        authFetch(`${API_BASE_URL}/history?limit=10`),
+        authFetch(`${API_BASE_URL}/demo-trade/history?limit=150&offset=0`),
+        authFetch(`${API_BASE_URL}/demo-trade/stats?limit=1200`),
         authFetch(`${API_BASE_URL}/real-trade/stats`).catch(() => null),
       ])
       const analysesData = analysesRes.ok ? await analysesRes.json() : {}
