@@ -15,7 +15,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // V.2.4: دانلود مستقیم گزارش از صفحه‌ی اصلی (بدون نیاز به باز کردن پنل
 // گزارش) + تغییر نام «پنل ادمین» به «پنل گزارش» + حذف متن ثابت «۴ مدل
 // هوش مصنوعی آماده تحلیل» از بالای صفحه (بی‌ربط به بخش دانلود گزارش بود)
-const FRONTEND_VERSION = 'V.2.10.7'
+const FRONTEND_VERSION = 'V.2.10.8'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -372,14 +372,13 @@ export default function App() {
       </header>
 
       <main className="main">
-        {/* V.2.10.1: معامله واقعی بالاتر از دمو — اولویت دید کاربر */}
+        {/* معامله واقعی → واچ‌لیست → پوزیشن‌های باز دمو */}
         <RealTradePanel />
-        <OpenPositionsPanel />
-
         <AutoSignalList
           onFullAnalyze={handleAutoAnalyze}
           isAnalyzing={status === 'analyzing'}
         />
+        <OpenPositionsPanel />
 
         <section className="intake">
           <h1 className="intake-title">سیگنال رو بذار روی میز</h1>
