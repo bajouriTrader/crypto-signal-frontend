@@ -4,6 +4,7 @@ import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 import OpenPositionsPanel from './OpenPositionsPanel'
 import RealTradePanel from './RealTradePanel'
+import SessionClock from './SessionClock'
 import { quickDownloadFullReport } from './reportExport'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
@@ -327,6 +328,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <div className="topbar-left">
+          <SessionClock />
+        </div>
         <div className="brand">
           <span className="brand-mark">◈</span>
           <span className="brand-name">SignalDesk</span>
