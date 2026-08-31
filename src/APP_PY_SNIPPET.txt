@@ -1,0 +1,9 @@
+# === حتماً داخل app.py (نزدیک importها و بعد از ساخت app) ===
+
+from settings_api import router as settings_router
+app.include_router(settings_router)
+
+# فایل settings_api.py و runtime_settings.py باید کنار app.py روی Space باشند.
+# بعد از ذخیره: Relaunch Space
+# تست: با توکن ورود، GET https://asalehb-crypto-signal-backend.hf.space/settings
+# باید JSON با فیلد settings برگردد نه 404.

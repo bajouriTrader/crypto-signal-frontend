@@ -64,8 +64,16 @@ export default function SettingsPanel() {
     setErr('')
     try {
       const res = await authFetch(`${API_BASE_URL}/settings`)
-      if (!res.ok) throw new Error('بارگذاری تنظیمات ناموفق')
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        const detail = data.detail || res.statusText || ''
+        if (res.status === 404) {
+          throw new Error(
+            'مسیر /settings روی بک‌اند پیدا نشد (۴۰۴). در app.py این دو خط را بگذار و Relaunch کن: from settings_api import router as settings_router — app.include_router(settings_router)'
+          )
+        }
+        throw new Error(`بارگذاری ناموفق (${res.status}) ${detail}`)
+      }
       setSettings(data.settings || {})
       setDefaults(data.defaults || {})
       setPwOverride(!!data.password_override_active)
