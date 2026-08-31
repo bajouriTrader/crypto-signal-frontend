@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.jsx'
 import AdminPanel from './AdminPanel.jsx'
+import SettingsPanel from './SettingsPanel.jsx'
 import Login from './Login.jsx'
 import { getToken } from './auth.js'
 import './index.css'
@@ -13,7 +14,11 @@ function Root() {
     return <Login onSuccess={() => setAuthed(true)} />
   }
 
-  const RootComponent = window.location.hash.startsWith('#admin') ? AdminPanel : App
+  const hash = window.location.hash || ''
+  let RootComponent = App
+  if (hash.startsWith('#admin')) RootComponent = AdminPanel
+  else if (hash.startsWith('#settings')) RootComponent = SettingsPanel
+
   return <RootComponent />
 }
 
