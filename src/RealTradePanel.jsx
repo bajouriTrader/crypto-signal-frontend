@@ -5,15 +5,37 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
 function normSym(s) {
   return String(s || '')
-    .replace('-SWAP-USDT', '')
-    .replace('USDT', '')
+    .replace(/-SWAP-USDT/gi, '')
+    .replace(/USDT$/i, '')
     .replace(/[-_/]/g, '')
     .toUpperCase()
 }
 
+function fmtPrice(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n) || n === 0) return '—'
+  if (n >= 100) return n.toFixed(2)
+  if (n >= 1) return n.toFixed(4)
+  if (n >= 0.01) return n.toFixed(5)
+  return n.toFixed(6)
+}
+
+function fmtUsd(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(4)} $`
+}
+
+function fmtPct(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(2)}%`
+}
+
 /**
- * پنل معامله واقعی — PnL دلاری زنده از صرافی + دکمه بستن دستی
- * پولینگ: ۵ ثانیه وقتی پوزیشن باز است، وگرنه ۳۰ ثانیه
+ * پنل معامله واقعی — قیمت و PnL دلاری زنده + بستن دستی
  */
 export default function RealTradePanel() {
   const [open, setOpen] = useState(true)
@@ -37,7 +59,7 @@ export default function RealTradePanel() {
       if (!silent) {
         setFlash('ok')
         if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
-        flashTimerRef.current = setTimeout(() => setFlash(null), 2000)
+        flashTimerRef.current = setTimeout(() => setFlash(null), 1500)
       }
     } catch (e) {
       setErr(e.message || 'خطا')
@@ -59,10 +81,9 @@ export default function RealTradePanel() {
     }
   }, [load])
 
-  // پولینگ پویا
   useEffect(() => {
     if (timerRef.current) clearInterval(timerRef.current)
-    const ms = hasOpen ? 5000 : 30000
+    const ms = hasOpen ? 4000 : 30000
     timerRef.current = setInterval(() => load(true), ms)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
@@ -85,7 +106,9 @@ export default function RealTradePanel() {
       if (!res.ok || data.ok === false) {
         throw new Error(data.reason || data.detail || `خطا ${res.status}`)
       }
-      setCloseMsg({ ok: true, text: `${key} بسته شد` + (data.approx_pnl != null ? ` · PnL≈${Number(data.approx_pnl).toFixed(4)}$` : '') })
+      const pnlBit =
+        data.approx_pnl != null ? ` | PnL ${fmtUsd(data.approx_pnl)}` : ''
+      setCloseMsg({ ok: true, text: `${key} بسته شد${pnlBit}` })
       await load(true)
     } catch (e) {
       setCloseMsg({ ok: false, text: e.message || 'بستن ناموفق' })
@@ -98,14 +121,11 @@ export default function RealTradePanel() {
   const exchangePositions = Array.isArray(status?.positions) ? status.positions : []
   const mgr = status?.manager || {}
 
-  // نقشه PnL دلاری از صرافی
   const exchangeBySym = {}
   for (const p of exchangePositions) {
-    const k = normSym(p.symbol)
-    exchangeBySym[k] = p
+    exchangeBySym[normSym(p.symbol)] = p
   }
 
-  // ادغام tracked + صرافی برای نمایش واحد
   const rows = []
   const seen = new Set()
   for (const t of tracked) {
@@ -113,7 +133,17 @@ export default function RealTradePanel() {
     const k = normSym(t.symbol)
     seen.add(k)
     const ex = exchangeBySym[k]
-    const upnl = ex != null ? Number(ex.unrealizedPnL ?? ex.unrealizedPnl ?? 0) : null
+    const upnlRaw =
+      t.unrealized_usdt != null
+        ? t.unrealized_usdt
+        : ex != null
+          ? ex.unrealizedPnL ?? ex.unrealizedPnl
+          : null
+    const upnl = upnlRaw != null ? Number(upnlRaw) : null
+    const last =
+      t.current_price != null
+        ? t.current_price
+        : ex?.lastPrice ?? ex?.markPrice ?? null
     rows.push({
       symbol: k,
       direction: t.direction,
@@ -123,26 +153,27 @@ export default function RealTradePanel() {
       elapsed_sec: t.elapsed_sec,
       unrealized_pct: t.unrealized_pct,
       upnl,
-      last: ex?.lastPrice || ex?.markPrice || t.current_price,
-      leverage: ex?.leverage || status?.leverage,
+      last,
+      leverage: t.leverage || ex?.leverage || status?.leverage,
       sl_on_exchange: t.sl_on_exchange,
       tp_on_exchange: t.tp_on_exchange,
-      margin: ex?.margin,
+      margin: t.margin ?? ex?.margin,
     })
   }
   for (const p of exchangePositions) {
     const k = normSym(p.symbol)
     if (seen.has(k)) continue
     const side = String(p.side || '').toUpperCase()
-    const isLong = side.includes('LONG') || Number(p.position || 0) > 0
-    if (side.includes('SHORT')) {
-      /* short */
-    }
+    const direction = side.includes('SHORT')
+      ? 'short'
+      : side.includes('LONG') || Number(p.position || 0) > 0
+        ? 'long'
+        : 'short'
     rows.push({
       symbol: k,
-      direction: side.includes('SHORT') ? 'short' : isLong ? 'long' : 'short',
+      direction,
       entry: p.avgPrice || p.entryPrice,
-      upnl: Number(p.unrealizedPnL ?? 0),
+      upnl: Number(p.unrealizedPnL ?? p.unrealizedPnl ?? 0),
       last: p.lastPrice || p.markPrice,
       leverage: p.leverage,
       margin: p.margin,
@@ -180,7 +211,7 @@ export default function RealTradePanel() {
           </span>
         )}
         {hasOpen && (
-          <span style={{ color: '#6ec6ff', marginRight: 8, fontSize: 11 }}>زنده ۵ث</span>
+          <span style={{ color: '#6ec6ff', marginRight: 8, fontSize: 11 }}>زنده ۴ث</span>
         )}
       </button>
 
@@ -194,7 +225,7 @@ export default function RealTradePanel() {
             background: '#0d1520',
             border: '1px solid #1e3344',
             fontSize: 13,
-            lineHeight: 1.7,
+            lineHeight: 1.6,
           }}
         >
           {loading && !status && <div>در حال بارگذاری…</div>}
@@ -206,7 +237,15 @@ export default function RealTradePanel() {
           )}
           {status && (
             <>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  marginBottom: 8,
+                  alignItems: 'center',
+                }}
+              >
                 <div>
                   موجودی آزاد:{' '}
                   <strong dir="ltr">{Number(status.available_usdt || 0).toFixed(2)} USDT</strong>
@@ -234,12 +273,12 @@ export default function RealTradePanel() {
                     cursor: 'pointer',
                   }}
                 >
-                  {loading ? '…' : flash === 'ok' ? '✓ به‌روز' : 'بروزرسانی'}
+                  {loading ? '…' : flash === 'ok' ? 'به‌روز شد' : 'بروزرسانی'}
                 </button>
               </div>
 
               {mgr && (
-                <div style={{ fontSize: 12, color: '#778899', marginBottom: 8 }}>
+                <div style={{ fontSize: 12, color: '#778899', marginBottom: 10 }}>
                   قفل سود {mgr.profit_lock_trigger} · BE {mgr.breakeven_trigger_pct}% · سقف{' '}
                   {Math.round((mgr.max_hold_seconds || 0) / 3600)}h
                 </div>
@@ -249,106 +288,135 @@ export default function RealTradePanel() {
                 <div style={{ color: '#667', marginTop: 8 }}>پوزیشن بازی نیست.</div>
               )}
 
-              {rows.length > 0 && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ color: '#8899aa', marginBottom: 8, fontWeight: 600 }}>
-                    پوزیشن‌های باز (زنده از صرافی)
-                  </div>
-                  {rows.map((r) => {
-                    const upnl = r.upnl
-                    const pct = r.unrealized_pct
-                    const isLong = r.direction === 'long'
-                    return (
-                      <div
-                        key={r.symbol}
+              {rows.map((r) => {
+                const isLong = r.direction === 'long'
+                const upnl = r.upnl
+                const pct = r.unrealized_pct
+                const pnlColor =
+                  upnl != null
+                    ? upnl >= 0
+                      ? '#2DD4A7'
+                      : '#FF5C72'
+                    : pct != null
+                      ? pct >= 0
+                        ? '#2DD4A7'
+                        : '#FF5C72'
+                      : '#889'
+                return (
+                  <div
+                    key={r.symbol}
+                    style={{
+                      padding: '12px 14px',
+                      marginBottom: 10,
+                      borderRadius: 12,
+                      background: '#121c28',
+                      border: '1px solid #243444',
+                    }}
+                  >
+                    {/* ردیف ۱: نماد + جهت + PnL */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                        marginBottom: 8,
+                      }}
+                    >
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: 16, fontWeight: 800 }}>{r.symbol}</span>{' '}
+                        <span
+                          style={{
+                            color: isLong ? '#2DD4A7' : '#FF5C72',
+                            fontWeight: 700,
+                            fontSize: 13,
+                          }}
+                        >
+                          {isLong ? 'LONG' : 'SHORT'}
+                        </span>
+                      </div>
+                      <div style={{ textAlign: 'left' }} dir="ltr">
+                        <div style={{ fontSize: 18, fontWeight: 800, color: pnlColor }}>
+                          {upnl != null ? fmtUsd(upnl) : pct != null ? fmtPct(pct) : '—'}
+                        </div>
+                        {upnl != null && pct != null && (
+                          <div style={{ fontSize: 12, color: '#778' }}>{fmtPct(pct)}</div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* ردیف ۲: ورود / لحظه */}
+                    <div
+                      dir="ltr"
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '6px 16px',
+                        fontSize: 13,
+                        color: '#aab',
+                        marginBottom: 8,
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      <span>
+                        Entry <strong style={{ color: '#dde' }}>{fmtPrice(r.entry)}</strong>
+                      </span>
+                      <span>
+                        Live <strong style={{ color: '#6ec6ff' }}>{fmtPrice(r.last)}</strong>
+                      </span>
+                      {r.leverage != null && <span>{r.leverage}x</span>}
+                      {r.margin != null && Number(r.margin) > 0 && (
+                        <span>margin {Number(r.margin).toFixed(2)}</span>
+                      )}
+                      {r.elapsed_sec != null && (
+                        <span>{Math.floor(Number(r.elapsed_sec) / 60)}m</span>
+                      )}
+                      {r.score != null && <span>score {r.score}</span>}
+                    </div>
+
+                    {/* ردیف ۳: وضعیت + دکمه */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}
+                    >
+                      <div style={{ fontSize: 11, color: '#667' }} dir="ltr">
+                        {r.sl_on_exchange === true
+                          ? 'SL OK'
+                          : r.sl_on_exchange === false
+                            ? 'SL missing'
+                            : ''}
+                        {r.tp_on_exchange === true ? ' · TP OK' : ''}
+                        {r.progress != null && Number.isFinite(Number(r.progress))
+                          ? ` · to TP ${Math.round(Number(r.progress) * 100)}%`
+                          : ''}
+                      </div>
+                      <button
+                        type="button"
+                        disabled={!!closing[r.symbol]}
+                        onClick={() => closePosition(r.symbol)}
                         style={{
-                          padding: '10px 12px',
-                          marginBottom: 8,
-                          borderRadius: 10,
-                          background: '#121c28',
-                          border: '1px solid #243444',
-                          display: 'grid',
-                          gridTemplateColumns: '1fr auto',
-                          gap: 6,
-                          alignItems: 'center',
+                          background: closing[r.symbol]
+                            ? '#333'
+                            : 'linear-gradient(180deg, #8b2e3a, #5c1a24)',
+                          border: '1px solid #a33',
+                          color: '#fff',
+                          borderRadius: 8,
+                          padding: '7px 16px',
+                          cursor: closing[r.symbol] ? 'wait' : 'pointer',
+                          fontSize: 12,
+                          fontWeight: 700,
                         }}
                       >
-                        <div>
-                          <strong style={{ fontSize: 15 }}>{r.symbol}</strong>{' '}
-                          <span style={{ color: isLong ? '#2DD4A7' : '#FF5C72', fontWeight: 700 }}>
-                            {isLong ? 'LONG' : 'SHORT'}
-                          </span>
-                          <span style={{ color: '#667', marginRight: 8 }} dir="ltr">
-                            @{Number(r.entry).toPrecision(6)}
-                          </span>
-                          {r.last != null && (
-                            <span style={{ color: '#8899aa', fontSize: 12 }} dir="ltr">
-                              · now {Number(r.last).toPrecision(6)}
-                            </span>
-                          )}
-                        </div>
-                        <div style={{ textAlign: 'left' }} dir="ltr">
-                          {upnl != null && !Number.isNaN(upnl) ? (
-                            <strong
-                              style={{
-                                fontSize: 16,
-                                color: upnl >= 0 ? '#2DD4A7' : '#FF5C72',
-                              }}
-                            >
-                              {upnl >= 0 ? '+' : ''}
-                              {upnl.toFixed(4)} $
-                            </strong>
-                          ) : pct != null ? (
-                            <strong style={{ color: pct >= 0 ? '#2DD4A7' : '#FF5C72' }}>
-                              {pct >= 0 ? '+' : ''}
-                              {Number(pct).toFixed(2)}%
-                            </strong>
-                          ) : (
-                            '—'
-                          )}
-                          {pct != null && upnl != null && (
-                            <div style={{ fontSize: 11, color: '#778' }}>
-                              {pct >= 0 ? '+' : ''}
-                              {Number(pct).toFixed(2)}%
-                            </div>
-                          )}
-                        </div>
-                        <div style={{ fontSize: 11, color: '#778' }} dir="ltr">
-                          {r.leverage ? `${r.leverage}x` : ''}
-                          {r.margin != null ? ` · margin ${Number(r.margin).toFixed(2)}` : ''}
-                          {r.progress != null ? ` · prog ${Math.round(Number(r.progress) * 100)}%` : ''}
-                          {r.elapsed_sec != null ? ` · ${Math.floor(r.elapsed_sec / 60)}m` : ''}
-                          {r.score != null ? ` · ${r.score}` : ''}
-                          {r.sl_on_exchange === true ? ' · SL✓' : r.sl_on_exchange === false ? ' · SL✗' : ''}
-                          {r.tp_on_exchange === true ? ' · TP✓' : ''}
-                          {r.recovered ? ' · از صرافی' : ''}
-                        </div>
-                        <div>
-                          <button
-                            type="button"
-                            disabled={!!closing[r.symbol]}
-                            onClick={() => closePosition(r.symbol)}
-                            style={{
-                              background: closing[r.symbol]
-                                ? '#333'
-                                : 'linear-gradient(180deg, #8b2e3a, #5c1a24)',
-                              border: '1px solid #a33',
-                              color: '#fff',
-                              borderRadius: 8,
-                              padding: '6px 14px',
-                              cursor: closing[r.symbol] ? 'wait' : 'pointer',
-                              fontSize: 12,
-                              fontWeight: 700,
-                            }}
-                          >
-                            {closing[r.symbol] ? '…' : 'بستن دستی'}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                        {closing[r.symbol] ? '…' : 'بستن دستی'}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
 
               {(status.recent_closed || []).length > 0 && (
                 <div style={{ marginTop: 14 }}>
@@ -357,11 +425,11 @@ export default function RealTradePanel() {
                   </div>
                   {(status.recent_closed || []).slice(0, 5).map((r, i) => {
                     const pnl = Number(r.approx_pnl || 0)
-                    const sym = String(r.symbol || '').replace('-SWAP-USDT', '')
+                    const sym = normSym(r.symbol)
                     const dir = String(r.direction || '').toLowerCase()
                     return (
                       <div
-                        key={String(sym) + i + String(r.exit_price || '')}
+                        key={sym + i + String(r.exit_price || '')}
                         style={{
                           padding: '7px 10px',
                           marginBottom: 5,
@@ -380,18 +448,13 @@ export default function RealTradePanel() {
                           </span>
                         </span>
                         <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72' }}>
-                          {pnl >= 0 ? '+' : ''}
-                          {pnl.toFixed(4)} $
+                          {fmtUsd(pnl)}
                         </strong>
                       </div>
                     )
                   })}
                 </div>
               )}
-
-              <div style={{ fontSize: 11, color: '#556', marginTop: 10 }}>
-                حداکثر {status.max_open_positions} پوزیشن · سیگنال ≥ {status.min_confluence}
-              </div>
             </>
           )}
         </div>
