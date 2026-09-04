@@ -4,6 +4,7 @@ import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 import OpenPositionsPanel from './OpenPositionsPanel'
 import RealTradePanel from './RealTradePanel'
+import SessionClock from './SessionClock'
 import { quickDownloadFullReport } from './reportExport'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
@@ -327,6 +328,9 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
+        <div className="topbar-left">
+          <SessionClock />
+        </div>
         <div className="brand">
           <span className="brand-mark">◈</span>
           <span className="brand-name">SignalDesk</span>
@@ -338,11 +342,6 @@ export default function App() {
                 : `فرانت‌اند: ${FRONTEND_VERSION} — بک‌اند: در حال بررسی...`
             }
           >
-            {/* V.2.4-fix: قبلاً اینجا موقتاً FRONTEND_VERSION نشون داده می‌شد تا
-                جواب GET /version برسه — چون فرانت و بک‌اند شماره‌نسخه‌ی جدا
-                دارن، این باعث یک فلش کوتاه (مثلاً V.2.4 بعد V.2.3) بعد از هر
-                رفرش می‌شد. الان تا رسیدن نسخه‌ی واقعی بک‌اند فقط یک نشانگر
-                خنثی نشون داده می‌شه، نه یه عدد اشتباه. */}
             {backendVersion || '···'}
           </span>
         </div>
@@ -357,6 +356,18 @@ export default function App() {
             }}
           >
             پنل گزارش
+          </a>
+          <span className="footer-divider"> · </span>
+          <a
+            href="#settings"
+            className="topbar-admin-link"
+            onClick={(e) => {
+              e.preventDefault()
+              window.location.hash = 'settings'
+              window.location.reload()
+            }}
+          >
+            تنظیمات
           </a>
           <span className="footer-divider"> · </span>
           <a
@@ -532,6 +543,18 @@ export default function App() {
           }}
         >
           پنل گزارش
+        </a>
+        <span className="footer-divider"> · </span>
+        <a
+          href="#settings"
+          className="footer-admin-link"
+          onClick={(e) => {
+            e.preventDefault()
+            window.location.hash = 'settings'
+            window.location.reload()
+          }}
+        >
+          تنظیمات
         </a>
         <span className="footer-divider"> · </span>
         <button
