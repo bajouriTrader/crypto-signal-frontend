@@ -212,174 +212,13 @@ function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
         </div>
       )}
 
-      <div className="stats-summary-grid">
-        <div className="stats-card">
-          <span className="stats-card-label">Win Rate کلی (همه‌ی نسخه‌ها با هم)</span>
-          <span className="stats-card-value" dir="ltr">
-            <WinRateCell winRate={stats.win_rate} breakeven={breakeven} />
-          </span>
-        </div>
-        <div className="stats-card">
-          <span className="stats-card-label">معاملات بسته‌شده</span>
-          <span className="stats-card-value" dir="ltr">{stats.total_resolved}</span>
-        </div>
-        <div className="stats-card">
-          <span className="stats-card-label">برد / باخت</span>
-          <span className="stats-card-value" dir="ltr">
-            {stats.wins} / {stats.losses}
-          </span>
-        </div>
-        <div className="stats-card">
-          <span className="stats-card-label">هنوز باز</span>
-          <span className="stats-card-value" dir="ltr">{stats.total_open}</span>
-        </div>
-        <div className="stats-card">
-          <span className="stats-card-label">بسته‌شده با Timeout</span>
-          <span className="stats-card-value" dir="ltr">{stats.timeouts}</span>
-        </div>
-        <div className="stats-card">
-          <span className="stats-card-label">بسته‌شده دستی</span>
-          <span className="stats-card-value" dir="ltr">{stats.manual_closes}</span>
-        </div>
-      </div>
-
-      <StatsBlock
-        title="تفکیک بر اساس نسخه‌ی کد (لحظه‌ی باز شدن معامله)"
-        note="مهم‌ترین جدول این صفحه: چون گیت‌ها/آستانه‌ها بین نسخه‌ها عوض شده، Win Rate کلی بالا میانگین چند رژیم متفاوته و به‌تنهایی گمراه‌کننده‌ست — برای قضاوت درباره‌ی وضعیت فعلی سیستم فقط به ردیف نسخه‌ی فعلی نگاه کن."
-      >
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>نسخه</th>
-                <th>تعداد</th>
-                <th>برد</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats.by_version || []).map((v) => (
-                <tr key={v.version} className={v.version === backendVersion ? 'stats-row-current' : ''}>
-                  <td>
-                    {v.version}
-                    {v.version === backendVersion && <span className="current-version-badge">فعلی</span>}
-                  </td>
-                  <td dir="ltr">{v.total}</td>
-                  <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </StatsBlock>
-
-      <StatsBlock title="تفکیک بر اساس probation (V.1.5)">
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>نوع</th>
-                <th>تعداد</th>
-                <th>برد</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(stats.by_probation || {}).map(([k, v]) => (
-                <tr key={k}>
-                  <td>{k === 'probation' ? 'تلاش آزمایشی probation' : 'عادی'}</td>
-                  <td dir="ltr">{v.total}</td>
-                  <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </StatsBlock>
-
-      <StatsBlock title="تفکیک بر اساس حالت (سخت‌گیر / ساده‌گیر)">
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>حالت</th>
-                <th>تعداد</th>
-                <th>برد</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(stats.by_mode || {}).map(([m, v]) => (
-                <tr key={m}>
-                  <td>{modeLabel(m)}</td>
-                  <td dir="ltr">{v.total}</td>
-                  <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </StatsBlock>
-
-      <StatsBlock title="تفکیک بر اساس جهت">
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>جهت</th>
-                <th>تعداد</th>
-                <th>برد</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(stats.by_direction || {}).map(([dir, v]) => (
-                <tr key={dir}>
-                  <td>{dir === 'long' ? 'لانگ' : 'شورت'}</td>
-                  <td dir="ltr">{v.total}</td>
-                  <td dir="ltr">{v.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={v.win_rate} breakeven={breakeven} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </StatsBlock>
-
-      <StatsBlock title="تفکیک بر اساس ارز">
-        <div className="admin-table-wrap">
-          <table className="admin-table">
-            <thead>
-              <tr>
-                <th>ارز</th>
-                <th>تعداد</th>
-                <th>برد</th>
-                <th>Win Rate</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats.by_symbol || []).map((s) => (
-                <tr key={s.symbol}>
-                  <td>{s.symbol}</td>
-                  <td dir="ltr">{s.total}</td>
-                  <td dir="ltr">{s.wins}</td>
-                  <td dir="ltr"><WinRateCell winRate={s.win_rate} breakeven={breakeven} /></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </StatsBlock>
+      <p style={{ marginTop: 16, fontSize: 12, color: '#667788', textAlign: 'center' }}>
+        آمار نسخه‌های قدیمی دمو و جدول‌های مقایسه‌ای حذف شد تا صفحه سبک بماند.
+        مبنای تصمیم: بلوک «معاملات واقعی Toobit» در بالا.
+      </p>
     </div>
   )
 }
-
-// ---------------------------------------------------------------------------
-// فیلتر + خروجی گزارش (Excel / Markdown)
-// ---------------------------------------------------------------------------
 
 const DEFAULT_FILTERS = {
   from: '',
@@ -575,26 +414,45 @@ export default function AdminPanel() {
   const loadData = async () => {
     setStatus('loading')
     try {
-      // V.2.9: سبک‌سازی — دیگر کل تاریخچه را در لود اولیه نمی‌کشیم.
-      // فقط آمار تجمیعی + ۳۰۰ معامله‌ی اخیر. دانلود کامل فقط با دکمه Export.
-      const [analysesRes, demoRes, statsRes, realRes] = await Promise.all([
-        authFetch(`${API_BASE_URL}/history?limit=10`),
-        authFetch(`${API_BASE_URL}/demo-trade/history?limit=150&offset=0`),
-        authFetch(`${API_BASE_URL}/demo-trade/stats?limit=1200`),
+      // V.2.10.33 UI: سبک — فقط آمار ریل (بدون دمو/تحلیل سنگین)
+      const [realRes, statusRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/real-trade/stats`).catch(() => null),
+        authFetch(`${API_BASE_URL}/real-trade/status`).catch(() => null),
       ])
-      const analysesData = analysesRes.ok ? await analysesRes.json() : {}
-      const demoData = demoRes.ok ? await demoRes.json() : {}
-      const statsData = statsRes.ok ? await statsRes.json() : null
       let realData = null
       try {
         if (realRes && realRes.ok) realData = await realRes.json()
       } catch (_) {}
-      setAnalyses(analysesData.analyses || [])
-      setDemoTrades(demoData.trades || demoData || [])
-      setStats(statsData)
+      if (!realData && statusRes && statusRes.ok) {
+        const st = await statusRes.json()
+        const recent = Array.isArray(st.recent_closed) ? st.recent_closed : []
+        let wins = 0
+        let losses = 0
+        let pnl = 0
+        for (const r of recent) {
+          const p = Number(r.approx_pnl || 0)
+          pnl += p
+          if (p > 0) wins += 1
+          else if (p < 0) losses += 1
+        }
+        const n = wins + losses
+        realData = {
+          win_rate: n ? Math.round((wins / n) * 1000) / 10 : null,
+          closed: n,
+          open: st.open_positions || 0,
+          wins,
+          losses,
+          total_pnl_usdt: pnl,
+          recent,
+          note: 'ساخته‌شده از /real-trade/status',
+          version: st.app_version,
+        }
+      }
+      setAnalyses([])
+      setDemoTrades([])
+      setStats(realData ? { win_rate: realData.win_rate } : null)
       setRealStats(realData)
-      setStatus(statsData ? 'ready' : 'error')
+      setStatus(realData ? 'ready' : 'error')
     } catch (e) {
       console.error('admin loadData', e)
       setStatus('error')
@@ -672,65 +530,16 @@ export default function AdminPanel() {
       </div>
 
       <div className="tabs">
-        <button className={`tab ${tab === 'stats' ? 'tab-active' : ''}`} onClick={() => setTab('stats')}>
-          📊 آمار Win Rate
-        </button>
-        <button className={`tab ${tab === 'analyses' ? 'tab-active' : ''}`} onClick={() => setTab('analyses')}>
-          🗂 سوابق تحلیل‌ها ({analyses.length})
-        </button>
-        <button className={`tab ${tab === 'demo' ? 'tab-active' : ''}`} onClick={() => setTab('demo')}>
-          💹 معاملات دمو ({demoTrades.length})
+        <button className="tab tab-active" type="button">
+          📊 معاملات واقعی / خلاصه
         </button>
       </div>
 
       {status === 'loading' && <div className="watchlist-status" style={{padding:20,color:'#9ab'}}>در حال بارگذاری گزارش…</div>}
       {status === 'error' && <div className="watchlist-status" style={{padding:20,color:'#FF5C72'}}>خطا در دریافت اطلاعات — دکمه بروزرسانی را بزنید</div>}
 
-      {status === 'ready' && tab === 'stats' && (
+      {status === 'ready' && (
         <StatsPanel stats={stats} backendVersion={backendVersion} breakeven={breakevenWinRate} realStats={realStats} />
-      )}
-      {status === 'ready' && tab === 'analyses' && <AnalysesTable rows={analyses} />}
-      {status === 'ready' && tab === 'demo' && (
-        <>
-          <FilterBar
-            filters={filters}
-            setFilters={setFilters}
-            summary={filteredSummary}
-            onExportExcel={() => exportToExcel(filteredDemoTrades, filteredSummary)}
-            onExportMarkdown={async () => {
-              // V.2.9: فقط هنگام دانلود، کل داده را بکش
-              try {
-                const res = await authFetch(`${API_BASE_URL}/demo-trade/export`)
-                const data = await res.json()
-                const all = data.trades || []
-                const filtered = applyFilters(all, filters)
-                exportToMarkdown(filtered, computeSummary(filtered), filters)
-              } catch (e) {
-                exportToMarkdown(filteredDemoTrades, filteredSummary, filters)
-              }
-            }}
-          />
-          <div className="report-pagination">
-            <button
-              className="btn-mini"
-              disabled={page === 0}
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-            >
-              ← قبلی
-            </button>
-            <span dir="ltr">
-              صفحه {page + 1} از {pageCount} — نمایش {pagedDemoTrades.length} از {filteredDemoTrades.length}
-            </span>
-            <button
-              className="btn-mini"
-              disabled={page >= pageCount - 1}
-              onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            >
-              بعدی →
-            </button>
-          </div>
-          <DemoTradesTable rows={pagedDemoTrades} />
-        </>
       )}
     </div>
   )

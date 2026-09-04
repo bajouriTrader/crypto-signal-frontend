@@ -126,8 +126,23 @@ export async function fetchDemoTrades(apiBaseUrl) {
 // دانلود سریع کل گزارش مارک‌داون بدون نیاز به باز کردن پنل گزارش —
 // برای دکمه‌ی «دانلود گزارش» بالای صفحه‌ی اصلی.
 export async function quickDownloadFullReport(apiBaseUrl) {
-  const rows = await fetchDemoTrades(apiBaseUrl)
-  const summary = computeSummary(rows)
-  exportToMarkdown(rows, summary, null)
-  return summary
+  // V.2.10.33: سبک — گزارش ریل به‌جای دانلود سنگین دمو
+  const res = await authFetch(`${apiBaseUrl}/real-trade/status`)
+  if (!res.ok) throw new Error(`خطای سرور (کد ${res.status})`)
+  const st = await res.json()
+  const recent = Array.isArray(st.recent_closed) ? st.recent_closed : []
+  let md = '# SignalDesk Real Report\n\n'
+  md += `نسخه: ${st.app_version || '—'}\n`
+  md += `موجودی آزاد: ${st.available_usdt}\n`
+  md += `پوزیشن باز: ${st.open_positions}/${st.max_open_positions}\n`
+  md += `min_confluence: ${st.min_confluence}\n\n`
+  md += '## معاملات اخیر بسته‌شده\n\n'
+  md += '| نماد | جهت | ورود | خروج | PnL | دلیل |\n| --- | --- | --- | --- | --- | --- |\n'
+  for (const r of recent) {
+    md += `| ${r.symbol} | ${r.direction} | ${r.entry} | ${r.exit_price} | ${r.approx_pnl} | ${r.exit_reason || ''} |\n`
+  }
+  md += '\n## فیلترهای ورود\n\n```json\n' + JSON.stringify(st.entry_filters || {}, null, 2) + '\n```\n'
+  downloadMarkdownFile(md, `real-status-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.md`)
+  return { total: recent.length }
 }
+

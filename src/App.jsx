@@ -4,7 +4,6 @@ import SignalChart from './SignalChart'
 import AutoSignalList, { DemoTradePanel, SendToExchangeButton } from './AutoSignalList'
 import OpenPositionsPanel from './OpenPositionsPanel'
 import RealTradePanel from './RealTradePanel'
-import SessionClock from './SessionClock'
 import { quickDownloadFullReport } from './reportExport'
 
 // آدرس بک‌اند (فاز ۳) روی HuggingFace Spaces
@@ -16,7 +15,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // V.2.4: دانلود مستقیم گزارش از صفحه‌ی اصلی (بدون نیاز به باز کردن پنل
 // گزارش) + تغییر نام «پنل ادمین» به «پنل گزارش» + حذف متن ثابت «۴ مدل
 // هوش مصنوعی آماده تحلیل» از بالای صفحه (بی‌ربط به بخش دانلود گزارش بود)
-const FRONTEND_VERSION = 'V.2.10.19'
+const FRONTEND_VERSION = 'V.2.10.14'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -328,9 +327,6 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-left">
-          <SessionClock />
-        </div>
         <div className="brand">
           <span className="brand-mark">◈</span>
           <span className="brand-name">SignalDesk</span>
@@ -364,15 +360,12 @@ export default function App() {
           </a>
           <span className="footer-divider"> · </span>
           <a
-            href="#settings"
+            href="https://asalehb-crypto-signal-backend.hf.space/status-viewer"
             className="topbar-admin-link"
-            onClick={(e) => {
-              e.preventDefault()
-              window.location.hash = 'settings'
-              window.location.reload()
-            }}
+            target="_blank"
+            rel="noreferrer"
           >
-            تنظیمات
+            وضعیت / رژیم
           </a>
           <span className="footer-divider"> · </span>
           <button
@@ -539,18 +532,6 @@ export default function App() {
           }}
         >
           پنل گزارش
-        </a>
-        <span className="footer-divider"> · </span>
-        <a
-          href="#settings"
-          className="footer-admin-link"
-          onClick={(e) => {
-            e.preventDefault()
-            window.location.hash = 'settings'
-            window.location.reload()
-          }}
-        >
-          تنظیمات
         </a>
         <span className="footer-divider"> · </span>
         <button
