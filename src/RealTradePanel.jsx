@@ -12,20 +12,20 @@ function Metric({ label, value, color }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 6,
-        padding: '12px 8px',
+        gap: 4,
+        padding: '10px 6px',
         borderRadius: 10,
         background: '#121c28',
         border: '1px solid #243444',
-        minHeight: 72,
+        minHeight: 64,
         textAlign: 'center',
       }}
     >
-      <span style={{ fontSize: 11, color: '#8899aa', lineHeight: 1.3 }}>{label}</span>
+      <span style={{ fontSize: 11, color: '#8899aa', lineHeight: 1.25 }}>{label}</span>
       <span
         dir="ltr"
         style={{
-          fontSize: 18,
+          fontSize: 16,
           fontWeight: 700,
           color: color || '#e8f0f8',
           lineHeight: 1.2,
@@ -38,26 +38,165 @@ function Metric({ label, value, color }) {
   )
 }
 
+/** نوار دو‌رنگ: چپ SL (قرمز) · راست TP (سبز) · نشانگر قیمت فعلی */
+function PathBar({ direction, entry, sl, tp, price }) {
+  const e = Number(entry)
+  const s = Number(sl)
+  const t = Number(tp)
+  const p = Number(price)
+  if (![e, s, t, p].every((x) => Number.isFinite(x) && x > 0)) {
+    return null
+  }
+
+  // برای لانگ: SL < entry < TP — برای شورت برعکس
+  const isLong = (direction || '').toLowerCase() === 'long'
+  const low = isLong ? s : t
+  const high = isLong ? t : s
+  const span = high - low
+  if (span <= 1e-12) return null
+
+  const clamp01 = (x) => Math.max(0, Math.min(1, x))
+  const entryPos = clamp01((e - low) / span)
+  const pricePos = clamp01((p - low) / span)
+
+  // پیشرفت به TP از entry (مثبت = به سمت TP)
+  let toTp = 0
+  if (isLong) {
+    toTp = t !== e ? (p - e) / (t - e) : 0
+  } else {
+    toTp = e !== t ? (e - p) / (e - t) : 0
+  }
+  const toTpPct = Math.round(toTp * 100)
+
+  // فاصله تا SL به‌صورت درصد مسیر entry→SL
+  let toSl = 0
+  if (isLong) {
+    toSl = e !== s ? (e - p) / (e - s) : 0
+  } else {
+    toSl = s !== e ? (p - e) / (s - e) : 0
+  }
+  const towardSl = toSl > 0
+
+  return (
+    <div style={{ marginTop: 8, marginBottom: 4 }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: 10,
+          color: '#778899',
+          marginBottom: 4,
+        }}
+      >
+        <span style={{ color: '#FF5C72' }}>SL {s}</span>
+        <span dir="ltr" style={{ color: towardSl ? '#FF5C72' : toTpPct >= 0 ? '#2DD4A7' : '#8899aa' }}>
+          {towardSl
+            ? `${Math.min(100, Math.round(toSl * 100))}% → SL`
+            : `${toTpPct}% → TP`}
+        </span>
+        <span style={{ color: '#2DD4A7' }}>TP {t}</span>
+      </div>
+      <div
+        style={{
+          position: 'relative',
+          height: 10,
+          borderRadius: 6,
+          overflow: 'hidden',
+          background: '#1a2836',
+          border: '1px solid #243444',
+        }}
+      >
+        {/* نیمه قرمز (سمت SL) و سبز (سمت TP) نسبت به entry */}
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: `${entryPos * 100}%`,
+            background: 'linear-gradient(90deg, rgba(255,92,114,0.55), rgba(255,92,114,0.2))',
+          }}
+        />
+        <div
+          style={{
+            position: 'absolute',
+            left: `${entryPos * 100}%`,
+            top: 0,
+            bottom: 0,
+            width: `${(1 - entryPos) * 100}%`,
+            background: 'linear-gradient(90deg, rgba(45,212,167,0.2), rgba(45,212,167,0.55))',
+          }}
+        />
+        {/* خط ورود */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${entryPos * 100}%`,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            marginLeft: -1,
+            background: 'rgba(255,255,255,0.55)',
+          }}
+        />
+        {/* نشانگر قیمت */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${pricePos * 100}%`,
+            top: -2,
+            bottom: -2,
+            width: 4,
+            marginLeft: -2,
+            borderRadius: 2,
+            background: towardSl ? '#FF5C72' : '#2DD4A7',
+            boxShadow: towardSl
+              ? '0 0 6px rgba(255,92,114,0.8)'
+              : '0 0 6px rgba(45,212,167,0.8)',
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
 function PosCard({ t, onClose, closing }) {
   const sym = t.symbol
   const dir = t.direction
   const upnl = Number(t.unrealized_usdt ?? 0)
   const upct = Number(t.unrealized_pct ?? 0)
-  const progress = Number(t.progress ?? 0)
   const pnlColor = upnl >= 0 ? '#2DD4A7' : '#FF5C72'
+
+  const cells = [
+    ['ورود', t.entry],
+    ['هدف', t.target],
+    ['حد ضرر', t.stop_loss],
+    ['مارجین', t.margin != null ? Number(t.margin).toFixed(2) : '—'],
+  ]
+
   return (
     <div
       style={{
         padding: 12,
-        marginBottom: 8,
+        marginBottom: 10,
         borderRadius: 12,
         background: '#121c28',
         border: '1px solid #243444',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <strong style={{ fontSize: 15 }}>{sym}</strong>
+      {/* هدر: نماد + PnL */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          gap: 8,
+          marginBottom: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <strong style={{ fontSize: 15, letterSpacing: 0.3 }}>{sym}</strong>
           <span
             style={{
               fontSize: 11,
@@ -73,58 +212,63 @@ function PosCard({ t, onClose, closing }) {
             <span style={{ fontSize: 10, color: '#E8A94A' }}>قفل‌شده</span>
           )}
         </div>
-        <div dir="ltr" style={{ textAlign: 'left' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: pnlColor }}>
+        <div dir="ltr" style={{ textAlign: 'left', minWidth: 88 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: pnlColor, fontVariantNumeric: 'tabular-nums' }}>
             {upnl >= 0 ? '+' : ''}{upnl.toFixed(4)} $
           </div>
-          <div style={{ fontSize: 11, color: pnlColor }} dir="ltr">
+          <div style={{ fontSize: 11, color: pnlColor, fontVariantNumeric: 'tabular-nums' }}>
             {upct >= 0 ? '+' : ''}{upct.toFixed(3)}%
           </div>
         </div>
       </div>
 
+      {/* اعداد ورود/TP/SL/مارجین — موبایل ۲×۲ */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(4, 1fr)',
-          gap: 8,
-          marginBottom: 10,
+          gridTemplateColumns: 'repeat(2, 1fr)',
+          gap: 6,
         }}
+        className="pos-levels"
       >
-        {[
-          ['ورود', t.entry],
-          ['هدف', t.target],
-          ['حد ضرر', t.stop_loss],
-          ['مارجین', t.margin != null ? Number(t.margin).toFixed(2) : '—'],
-        ].map(([lb, val]) => (
-          <div key={lb} style={{ textAlign: 'center' }}>
+        {cells.map(([lb, val]) => (
+          <div
+            key={lb}
+            style={{
+              textAlign: 'center',
+              padding: '6px 4px',
+              borderRadius: 8,
+              background: '#0d1520',
+              border: '1px solid #1e3344',
+            }}
+          >
             <div style={{ fontSize: 10, color: '#667788', marginBottom: 2 }}>{lb}</div>
-            <div dir="ltr" style={{ fontSize: 12, fontWeight: 600, color: '#cde' }}>
+            <div dir="ltr" style={{ fontSize: 13, fontWeight: 600, color: '#d8e6f0', fontVariantNumeric: 'tabular-nums' }}>
               {val ?? '—'}
             </div>
           </div>
         ))}
       </div>
 
-      <div style={{ marginBottom: 8 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#667', marginBottom: 3 }}>
-          <span>پیشرفت به TP</span>
-          <span dir="ltr">{Math.round(progress * 100)}%</span>
-        </div>
-        <div style={{ height: 4, borderRadius: 2, background: '#1a2836', overflow: 'hidden' }}>
-          <div
-            style={{
-              height: '100%',
-              width: `${Math.max(0, Math.min(100, progress * 100))}%`,
-              background: progress >= 0.72 ? '#2DD4A7' : '#3a7abd',
-              transition: 'width 0.4s',
-            }}
-          />
-        </div>
-      </div>
+      <PathBar
+        direction={dir}
+        entry={t.entry}
+        sl={t.stop_loss}
+        tp={t.target}
+        price={t.current_price}
+      />
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span style={{ fontSize: 11, color: '#667' }} dir="ltr">
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginTop: 8,
+          gap: 8,
+          flexWrap: 'wrap',
+        }}
+      >
+        <span style={{ fontSize: 11, color: '#667788' }} dir="ltr">
           SL:{t.sl_on_exchange ? '✓' : '—'} · TP:{t.tp_on_exchange ? '✓' : '—'}
           {t.leverage ? ` · ${t.leverage}x` : ''}
         </span>
@@ -137,7 +281,7 @@ function PosCard({ t, onClose, closing }) {
             border: '1px solid #5a2a35',
             color: '#ff8a9a',
             borderRadius: 8,
-            padding: '4px 12px',
+            padding: '6px 14px',
             fontSize: 12,
             cursor: closing ? 'wait' : 'pointer',
           }}
@@ -210,6 +354,7 @@ export default function RealTradePanel() {
   const tracked = status?.tracked || []
   const mgr = status?.manager || {}
   const recent = status?.recent_closed || []
+  const openPnl = tracked.reduce((s, t) => s + Number(t.unrealized_usdt || 0), 0)
 
   return (
     <div className="real-trade-wrap" style={{ margin: '12px 0' }}>
@@ -221,14 +366,16 @@ export default function RealTradePanel() {
           border: '1px solid #2a4a5a',
           color: '#e0f0ff',
           borderRadius: 10,
-          padding: '10px 16px',
+          padding: '10px 14px',
           cursor: 'pointer',
-          fontSize: 14,
+          fontSize: 13,
           width: '100%',
           textAlign: 'right',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 8,
+          flexWrap: 'wrap',
         }}
       >
         <span>
@@ -250,7 +397,7 @@ export default function RealTradePanel() {
         <div
           style={{
             marginTop: 8,
-            padding: 14,
+            padding: 12,
             borderRadius: 12,
             background: '#0d1520',
             border: '1px solid #1e3344',
@@ -264,10 +411,11 @@ export default function RealTradePanel() {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: 8,
                   marginBottom: 12,
                 }}
+                className="rt-metrics"
               >
                 <Metric
                   label="موجودی آزاد"
@@ -280,12 +428,8 @@ export default function RealTradePanel() {
                 <Metric label="اهرم" value={`${status.leverage}x`} />
                 <Metric
                   label="PnL باز"
-                  value={`${(tracked.reduce((s, t) => s + Number(t.unrealized_usdt || 0), 0)).toFixed(4)} $`}
-                  color={
-                    tracked.reduce((s, t) => s + Number(t.unrealized_usdt || 0), 0) >= 0
-                      ? '#2DD4A7'
-                      : '#FF5C72'
-                  }
+                  value={`${openPnl >= 0 ? '+' : ''}${openPnl.toFixed(4)} $`}
+                  color={openPnl >= 0 ? '#2DD4A7' : '#FF5C72'}
                 />
               </div>
 
@@ -293,18 +437,19 @@ export default function RealTradePanel() {
                 style={{
                   display: 'flex',
                   flexWrap: 'wrap',
-                  gap: 8,
+                  gap: 6,
                   justifyContent: 'center',
                   marginBottom: 12,
                   fontSize: 11,
                   color: '#7a8a9a',
+                  lineHeight: 1.5,
                 }}
               >
                 <span>قفل {mgr.profit_lock_trigger ?? '—'} · BE {mgr.breakeven_trigger_pct ?? '—'}%</span>
                 <span>·</span>
                 <span>سیگنال ≥ {status.min_confluence}</span>
                 <span>·</span>
-                <span>سقف نگهداری {Math.round((mgr.max_hold_seconds || 0) / 3600)}h</span>
+                <span>سقف {Math.round((mgr.max_hold_seconds || 0) / 3600)}h</span>
               </div>
 
               {tracked.length > 0 ? (
@@ -321,7 +466,7 @@ export default function RealTradePanel() {
               ) : (
                 <div
                   style={{
-                    padding: '20px 12px',
+                    padding: '18px 12px',
                     textAlign: 'center',
                     color: '#556677',
                     border: '1px dashed #243444',
@@ -344,9 +489,10 @@ export default function RealTradePanel() {
                         style={{
                           display: 'flex',
                           justifyContent: 'space-between',
-                          padding: '6px 4px',
+                          padding: '7px 4px',
                           borderBottom: '1px solid #1a2836',
                           fontSize: 12,
+                          gap: 8,
                         }}
                       >
                         <span>
@@ -355,7 +501,7 @@ export default function RealTradePanel() {
                             {r.direction === 'long' ? 'L' : 'S'}
                           </span>
                         </span>
-                        <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                        <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72', fontVariantNumeric: 'tabular-nums' }}>
                           {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} $
                         </strong>
                       </div>
@@ -364,7 +510,14 @@ export default function RealTradePanel() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                  alignItems: 'center',
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => load()}
@@ -374,7 +527,7 @@ export default function RealTradePanel() {
                     border: '1px solid #2a4a5a',
                     color: '#cde',
                     borderRadius: 8,
-                    padding: '6px 14px',
+                    padding: '8px 14px',
                     cursor: loading ? 'wait' : 'pointer',
                     fontSize: 13,
                   }}
@@ -395,7 +548,7 @@ export default function RealTradePanel() {
                     textDecoration: 'none',
                     border: '1px solid #2a4a6a',
                     borderRadius: 8,
-                    padding: '6px 12px',
+                    padding: '8px 12px',
                   }}
                 >
                   وضعیت / رژیم ↗
@@ -405,6 +558,13 @@ export default function RealTradePanel() {
           )}
         </div>
       )}
+
+      <style>{`
+        @media (min-width: 520px) {
+          .rt-metrics { grid-template-columns: repeat(4, 1fr) !important; }
+          .pos-levels { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+      `}</style>
     </div>
   )
 }
