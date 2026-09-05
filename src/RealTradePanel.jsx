@@ -38,7 +38,19 @@ function Metric({ label, value, color }) {
   )
 }
 
-/** نوار دو‌رنگ: چپ SL (قرمز) · راست TP (سبز) · نشانگر قیمت فعلی */
+/** نوار مسیر قیمت: همیشه LTR — چپ=SL · راست=TP · نشانگر=قیمت فعلی */
+function formatElapsed(sec) {
+  const n = Number(sec)
+  if (!Number.isFinite(n) || n < 0) return '—'
+  const s = Math.floor(n)
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const r = s % 60
+  if (h > 0) return `${h}س ${m}د`
+  if (m > 0) return `${m}د ${r}ث`
+  return `${r}ث`
+}
+
 function PathBar({ direction, entry, sl, tp, price }) {
   const e = Number(entry)
   const s = Number(sl)
@@ -48,18 +60,20 @@ function PathBar({ direction, entry, sl, tp, price }) {
     return null
   }
 
-  // برای لانگ: SL < entry < TP — برای شورت برعکس
+  // لانگ: SL < entry < TP — شورت برعکس؛ محور همیشه چپ=کم · راست=زیاد از دید قیمت
   const isLong = (direction || '').toLowerCase() === 'long'
-  const low = isLong ? s : t
-  const high = isLong ? t : s
+  const low = Math.min(s, t, e)
+  const high = Math.max(s, t, e)
   const span = high - low
   if (span <= 1e-12) return null
 
   const clamp01 = (x) => Math.max(0, Math.min(1, x))
   const entryPos = clamp01((e - low) / span)
   const pricePos = clamp01((p - low) / span)
+  const slPos = clamp01((s - low) / span)
+  const tpPos = clamp01((t - low) / span)
 
-  // پیشرفت به TP از entry (مثبت = به سمت TP)
+  // پیشرفت نسبت به ورود: مثبت = به سمت TP
   let toTp = 0
   if (isLong) {
     toTp = t !== e ? (p - e) / (t - e) : 0
@@ -68,67 +82,78 @@ function PathBar({ direction, entry, sl, tp, price }) {
   }
   const toTpPct = Math.round(toTp * 100)
 
-  // فاصله تا SL به‌صورت درصد مسیر entry→SL
   let toSl = 0
   if (isLong) {
     toSl = e !== s ? (e - p) / (e - s) : 0
   } else {
     toSl = s !== e ? (p - e) / (s - e) : 0
   }
-  const towardSl = toSl > 0
+  const towardSl = toSl > 0.02
+  const towardTp = toTp > 0.02
+  const statusLabel = towardSl
+    ? `${Math.min(100, Math.round(toSl * 100))}% مسیر تا حدضرر`
+    : towardTp
+      ? `${Math.min(100, Math.max(0, toTpPct))}% مسیر تا هدف`
+      : 'نزدیک ورود'
+
+  const statusColor = towardSl ? '#FF5C72' : towardTp ? '#2DD4A7' : '#8899aa'
+
+  // سمت چپ نوار همیشه عدد کوچکتر (قیمت پایین‌تر)
+  const leftLabel = isLong ? `حدضرر ${s}` : `هدف ${t}`
+  const rightLabel = isLong ? `هدف ${t}` : `حدضرر ${s}`
+  const leftColor = isLong ? '#FF5C72' : '#2DD4A7'
+  const rightColor = isLong ? '#2DD4A7' : '#FF5C72'
 
   return (
-    <div style={{ marginTop: 8, marginBottom: 4 }}>
+    <div style={{ marginTop: 10, marginBottom: 4 }} dir="ltr">
       <div
         style={{
           display: 'flex',
           justifyContent: 'space-between',
+          alignItems: 'center',
           fontSize: 10,
-          color: '#778899',
           marginBottom: 4,
+          gap: 6,
         }}
       >
-        <span style={{ color: '#FF5C72' }}>SL {s}</span>
-        <span dir="ltr" style={{ color: towardSl ? '#FF5C72' : toTpPct >= 0 ? '#2DD4A7' : '#8899aa' }}>
-          {towardSl
-            ? `${Math.min(100, Math.round(toSl * 100))}% → SL`
-            : `${toTpPct}% → TP`}
-        </span>
-        <span style={{ color: '#2DD4A7' }}>TP {t}</span>
+        <span style={{ color: leftColor, fontWeight: 600 }}>{leftLabel}</span>
+        <span style={{ color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
+        <span style={{ color: rightColor, fontWeight: 600 }}>{rightLabel}</span>
       </div>
       <div
         style={{
           position: 'relative',
-          height: 10,
+          height: 12,
           borderRadius: 6,
           overflow: 'hidden',
           background: '#1a2836',
           border: '1px solid #243444',
         }}
       >
-        {/* نیمه قرمز (سمت SL) و سبز (سمت TP) نسبت به entry */}
+        {/* پس‌زمینه: از SL تا entry قرمز، از entry تا TP سبز */}
         <div
           style={{
             position: 'absolute',
-            left: 0,
+            left: `${Math.min(slPos, entryPos) * 100}%`,
+            width: `${Math.abs(entryPos - slPos) * 100}%`,
             top: 0,
             bottom: 0,
-            width: `${entryPos * 100}%`,
-            background: 'linear-gradient(90deg, rgba(255,92,114,0.55), rgba(255,92,114,0.2))',
+            background: 'linear-gradient(90deg, rgba(255,92,114,0.5), rgba(255,92,114,0.18))',
           }}
         />
         <div
           style={{
             position: 'absolute',
-            left: `${entryPos * 100}%`,
+            left: `${Math.min(entryPos, tpPos) * 100}%`,
+            width: `${Math.abs(tpPos - entryPos) * 100}%`,
             top: 0,
             bottom: 0,
-            width: `${(1 - entryPos) * 100}%`,
-            background: 'linear-gradient(90deg, rgba(45,212,167,0.2), rgba(45,212,167,0.55))',
+            background: 'linear-gradient(90deg, rgba(45,212,167,0.18), rgba(45,212,167,0.5))',
           }}
         />
         {/* خط ورود */}
         <div
+          title="ورود"
           style={{
             position: 'absolute',
             left: `${entryPos * 100}%`,
@@ -136,25 +161,40 @@ function PathBar({ direction, entry, sl, tp, price }) {
             bottom: 0,
             width: 2,
             marginLeft: -1,
-            background: 'rgba(255,255,255,0.55)',
+            background: 'rgba(255,255,255,0.7)',
           }}
         />
-        {/* نشانگر قیمت */}
+        {/* نشانگر قیمت فعلی */}
         <div
+          title={`قیمت ${p}`}
           style={{
             position: 'absolute',
             left: `${pricePos * 100}%`,
-            top: -2,
-            bottom: -2,
-            width: 4,
-            marginLeft: -2,
+            top: -3,
+            bottom: -3,
+            width: 5,
+            marginLeft: -2.5,
             borderRadius: 2,
-            background: towardSl ? '#FF5C72' : '#2DD4A7',
+            background: towardSl ? '#FF5C72' : towardTp ? '#2DD4A7' : '#ccd6e0',
             boxShadow: towardSl
-              ? '0 0 6px rgba(255,92,114,0.8)'
-              : '0 0 6px rgba(45,212,167,0.8)',
+              ? '0 0 8px rgba(255,92,114,0.85)'
+              : towardTp
+                ? '0 0 8px rgba(45,212,167,0.85)'
+                : '0 0 4px rgba(200,210,220,0.5)',
           }}
         />
+      </div>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          fontSize: 10,
+          color: '#667788',
+          marginTop: 4,
+        }}
+      >
+        <span>قیمت: <b dir="ltr" style={{ color: '#c8d6e4' }}>{p}</b></span>
+        <span>ورود: <b dir="ltr" style={{ color: '#c8d6e4' }}>{e}</b></span>
       </div>
     </div>
   )
@@ -169,9 +209,11 @@ function PosCard({ t, onClose, closing }) {
 
   const cells = [
     ['ورود', t.entry],
-    ['هدف', t.target],
-    ['حد ضرر', t.stop_loss],
+    ['قیمت فعلی', t.current_price],
+    ['هدف (TP)', t.target],
+    ['حد ضرر (SL)', t.stop_loss],
     ['مارجین', t.margin != null ? Number(t.margin).toFixed(2) : '—'],
+    ['مدت باز', formatElapsed(t.elapsed_sec)],
   ]
 
   return (
@@ -211,6 +253,21 @@ function PosCard({ t, onClose, closing }) {
           {t.profit_locked && (
             <span style={{ fontSize: 10, color: '#E8A94A' }}>قفل‌شده</span>
           )}
+          <span
+            style={{
+              fontSize: 11,
+              padding: '2px 8px',
+              borderRadius: 6,
+              background: 'rgba(100,140,180,0.15)',
+              color: '#9ab0c4',
+            }}
+            title="مدت باز بودن پوزیشن"
+          >
+            ⏱ {formatElapsed(t.elapsed_sec)}
+          </span>
+          {t.score != null && (
+            <span style={{ fontSize: 10, color: '#7a8a9a' }}>امتیاز {t.score}</span>
+          )}
         </div>
         <div dir="ltr" style={{ textAlign: 'left', minWidth: 88 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: pnlColor, fontVariantNumeric: 'tabular-nums' }}>
@@ -226,7 +283,7 @@ function PosCard({ t, onClose, closing }) {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(2, 1fr)',
+          gridTemplateColumns: 'repeat(3, 1fr)',
           gap: 6,
         }}
         className="pos-levels"
@@ -269,8 +326,10 @@ function PosCard({ t, onClose, closing }) {
         }}
       >
         <span style={{ fontSize: 11, color: '#667788' }} dir="ltr">
-          SL:{t.sl_on_exchange ? '✓' : '—'} · TP:{t.tp_on_exchange ? '✓' : '—'}
+          SL روی صرافی:{t.sl_on_exchange ? '✓' : '✗'} · TP:{t.tp_on_exchange ? '✓' : '✗'}
           {t.leverage ? ` · ${t.leverage}x` : ''}
+          {t.regime_sl_tightened ? ' · SL تنگ‌شده' : ''}
+          {t.breakeven_set ? ' · BE' : ''}
         </span>
         <button
           type="button"
