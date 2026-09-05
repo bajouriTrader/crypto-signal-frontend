@@ -6,7 +6,9 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 const LABELS = {
   min_confluence: 'حداقل امتیاز Confluence ریل',
   min_sl_distance_pct: 'حداقل فاصله SL (%)',
-  min_rr: 'حداقل R:R',
+  max_sl_distance_pct: 'سقف فاصله SL (%)',
+  min_rr: 'حداقل R:R خالص (بعد از فی)',
+  round_trip_friction_pct: 'اصطکاک رفت‌وبرگشت فی+اسلیپ (%)',
   min_tp_distance_pct: 'حداقل فاصله TP (%)',
   real_min_symbol_wr: 'حداقل WR دمو نماد',
   symbol_cooldown_sec: 'کول‌داون نماد بعد از رد (ثانیه)',
@@ -15,6 +17,14 @@ const LABELS = {
   min_profit_pct: 'حداقل سود برای قفل (%)',
   breakeven_trigger_pct: 'آستانه BE روی صرافی (%)',
   max_hold_seconds: 'سقف نگهداری (ثانیه)',
+  float_min_r: 'حداقل سود float بر حسب R',
+  float_min_profit_usdt: 'کف سود float (USDT)',
+  float_min_profit_pct: 'کف سود float (%)',
+  float_min_elapsed_sec: 'حداقل زمان برای float (ثانیه)',
+  enable_float_profit_exit: 'فعال بودن float سود',
+  enable_emergency_loss_exit: 'سقف اضطراری ضرر',
+  max_unrealized_loss_pct: 'سقف ضرر شناور قیمتی (%)',
+  enable_regime_tighten_sl: 'تنگ کردن SL در رژیم مخالف',
   daily_loss_limit: 'سقف ضرر روزانه (USDT)',
   margin_fraction: 'کسر مارجین از موجودی',
   max_open_positions: 'سقف پوزیشن همزمان',
@@ -28,7 +38,8 @@ const GROUPS = [
   {
     title: 'ورود ریل',
     keys: [
-      'min_confluence', 'min_sl_distance_pct', 'min_rr', 'min_tp_distance_pct',
+      'min_confluence', 'min_sl_distance_pct', 'max_sl_distance_pct',
+      'min_rr', 'round_trip_friction_pct', 'min_tp_distance_pct',
       'real_min_symbol_wr', 'symbol_cooldown_sec', 'post_close_cooldown_sec',
       'enable_chop_filter', 'chop_adx_threshold',
     ],
@@ -37,12 +48,15 @@ const GROUPS = [
     title: 'خروج / مدیریت سود',
     keys: [
       'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'max_hold_seconds',
+      'enable_float_profit_exit', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
+      'enable_regime_tighten_sl',
     ],
   },
   {
     title: 'سرمایه و ریسک',
     keys: [
       'daily_loss_limit', 'margin_fraction', 'max_open_positions', 'leverage', 'max_same_direction',
+      'enable_emergency_loss_exit', 'max_unrealized_loss_pct',
     ],
   },
 ]
