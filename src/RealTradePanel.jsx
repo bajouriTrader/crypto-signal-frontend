@@ -278,12 +278,14 @@ function PosCard({ t, onClose, closing }) {
         </div>
       </div>
 
-      {/* ورود · قیمت · TP · SL · مارجین — یک سطر */}
+      {/* ورود · قیمت · TP · SL · مارجین — همیشه یک سطر */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
+          display: 'flex',
+          flexDirection: 'row',
+          flexWrap: 'nowrap',
           gap: 6,
+          width: '100%',
         }}
         className="pos-levels"
       >
@@ -291,15 +293,17 @@ function PosCard({ t, onClose, closing }) {
           <div
             key={c.label}
             style={{
+              flex: '1 1 0',
+              minWidth: 0,
               textAlign: 'center',
-              padding: '6px 4px',
+              padding: '6px 2px',
               borderRadius: 8,
               background: '#0d1520',
               border: '1px solid #1e3344',
             }}
           >
-            <div style={{ fontSize: 10, color: '#667788', marginBottom: 2 }}>{c.label}</div>
-            <div dir="ltr" style={{ fontSize: 13, fontWeight: 600, color: c.color, fontVariantNumeric: 'tabular-nums' }}>
+            <div style={{ fontSize: 9, color: '#667788', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.label}</div>
+            <div dir="ltr" style={{ fontSize: 12, fontWeight: 600, color: c.color, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {c.value ?? '—'}
             </div>
           </div>
@@ -620,7 +624,11 @@ export default function RealTradePanel() {
       <style>{`
         @media (min-width: 520px) {
           .rt-metrics { grid-template-columns: repeat(4, 1fr) !important; }
-          .pos-levels { grid-template-columns: repeat(4, 1fr) !important; }
+        }
+        .pos-levels {
+          display: flex !important;
+          flex-wrap: nowrap !important;
+          flex-direction: row !important;
         }
       `}</style>
     </div>
