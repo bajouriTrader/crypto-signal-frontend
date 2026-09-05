@@ -46,9 +46,9 @@ function formatElapsed(sec) {
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
   const r = s % 60
-  if (h > 0) return `${h}س ${m}د`
-  if (m > 0) return `${m}د ${r}ث`
-  return `${r}ث`
+  const pad = (x) => String(x).padStart(2, '0')
+  if (h > 0) return `${h}:${pad(m)}:${pad(r)}`
+  return `${pad(m)}:${pad(r)}`
 }
 
 function PathBar({ direction, entry, sl, tp, price }) {
@@ -208,12 +208,11 @@ function PosCard({ t, onClose, closing }) {
   const pnlColor = upnl >= 0 ? '#2DD4A7' : '#FF5C72'
 
   const cells = [
-    ['ورود', t.entry],
-    ['قیمت فعلی', t.current_price],
-    ['هدف (TP)', t.target],
-    ['حد ضرر (SL)', t.stop_loss],
-    ['مارجین', t.margin != null ? Number(t.margin).toFixed(2) : '—'],
-    ['مدت باز', formatElapsed(t.elapsed_sec)],
+    { label: 'ورود', value: t.entry, color: '#4DA3FF' },
+    { label: 'قیمت فعلی', value: t.current_price, color: '#FFFFFF' },
+    { label: 'هدف (TP)', value: t.target, color: '#2DD4A7' },
+    { label: 'حد ضرر (SL)', value: t.stop_loss, color: '#FF5C72' },
+    { label: 'مارجین', value: t.margin != null ? Number(t.margin).toFixed(2) : '—', color: '#d8e6f0' },
   ]
 
   return (
@@ -279,18 +278,18 @@ function PosCard({ t, onClose, closing }) {
         </div>
       </div>
 
-      {/* اعداد ورود/TP/SL/مارجین — موبایل ۲×۲ */}
+      {/* ورود · قیمت · TP · SL · مارجین — یک سطر */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
+          gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
           gap: 6,
         }}
         className="pos-levels"
       >
-        {cells.map(([lb, val]) => (
+        {cells.map((c) => (
           <div
-            key={lb}
+            key={c.label}
             style={{
               textAlign: 'center',
               padding: '6px 4px',
@@ -299,9 +298,9 @@ function PosCard({ t, onClose, closing }) {
               border: '1px solid #1e3344',
             }}
           >
-            <div style={{ fontSize: 10, color: '#667788', marginBottom: 2 }}>{lb}</div>
-            <div dir="ltr" style={{ fontSize: 13, fontWeight: 600, color: '#d8e6f0', fontVariantNumeric: 'tabular-nums' }}>
-              {val ?? '—'}
+            <div style={{ fontSize: 10, color: '#667788', marginBottom: 2 }}>{c.label}</div>
+            <div dir="ltr" style={{ fontSize: 13, fontWeight: 600, color: c.color, fontVariantNumeric: 'tabular-nums' }}>
+              {c.value ?? '—'}
             </div>
           </div>
         ))}
