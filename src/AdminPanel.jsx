@@ -129,93 +129,138 @@ function StatsBlock({ title, note, children }) {
   )
 }
 
+function fmtPnl(v) {
+  const n = Number(v)
+  if (!Number.isFinite(n)) return '—'
+  const sign = n > 0 ? '+' : ''
+  return `${sign}${n.toFixed(3)}`
+}
+
 function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
-  if (!stats) {
+  if (!stats && !realStats) {
     return <div style={{ padding: 20, color: '#9ab' }}>آمار هنوز بارگذاری نشده.</div>
   }
 
+  const ver = realStats?.app_version || realStats?.version || backendVersion || '—'
+  const equity = realStats?.equity_usdt
+  const available = realStats?.available_usdt
+  const daily = realStats?.daily_pnl
+  const dailyPnl = daily && typeof daily === 'object' ? Number(daily.pnl || 0) : null
+  const dailyDate = daily && typeof daily === 'object' ? daily.date : null
+  const sampleN = Number(realStats?.closed ?? 0)
+  const wins = Number(realStats?.wins ?? 0)
+  const losses = Number(realStats?.losses ?? 0)
+  const totalPnl = Number(realStats?.total_pnl_usdt ?? 0)
+  const wr = realStats?.win_rate
+  const openN = Number(realStats?.open ?? 0)
+
   return (
-    <div style={{ color: '#e0e8f0' }}>
-      <div className="breakeven-note">
-        نقطه‌ی سر‌به‌سر با نسبت ریسک/ریوارد فعلی سیستم: <strong dir="ltr">{breakeven}%</strong> —
-        زیر این خط یعنی حتی با وین‌ریت مثبت، در مجموع ضرر می‌ده.
-        {backendVersion && (
-          <span className="breakeven-source-note">
-            {' '}
-            (بر مبنای R:R نسخه‌ی فعلی «{backendVersion}» — از GET /version خونده می‌شه، نه از میانگین معاملات گذشته)
-          </span>
-        )}
+    <div className="report-real" style={{ color: '#e0e8f0' }}>
+      <div className="breakeven-note" style={{ marginBottom: 14 }}>
+        نقطه‌ی سر‌به‌سر تئوری با R:R فعلی: <strong dir="ltr">{breakeven}%</strong>
+        {backendVersion ? (
+          <span className="breakeven-source-note"> · نسخه سیستم: <b dir="ltr">{backendVersion}</b></span>
+        ) : null}
       </div>
 
-      {/* V.2.10.1: آمار ریل جدا از دمو */}
       {realStats && (
-        <div className="stats-block" style={{ marginBottom: 16, border: '1px solid #1a3a2a', borderRadius: 12, padding: 12, background: '#0a1612' }}>
-          <h3 style={{ margin: '0 0 8px', color: '#2DD4A7', fontSize: 15 }}>معاملات واقعی Toobit (جدا از دمو)</h3>
-          <p style={{ margin: '0 0 10px', color: '#8cba9e', fontSize: 12 }}>
-            این بخش فقط پوزیشن‌های ریل را نشان می‌دهد و با جدول نسخه‌های دمو قاطی نیست.
-            {realStats.app_version ? ` · نسخه بک‌اند: ${realStats.app_version}` : ''}
-            {realStats.source ? ` · منبع: ${realStats.source === 'memory' ? 'حافظه سرور' : 'دیتابیس'}` : ''}
+        <div className="stats-block report-real-card">
+          <div className="report-real-head">
+            <h3>معاملات واقعی Toobit</h3>
+            <span className="report-badge" dir="ltr">{ver}</span>
+          </div>
+          <p className="report-real-note">
+            اعداد زیر از <b>نمونه معاملات ریل ثبت‌شده در سرور</b> است (نه واریز/برداشت کیف پول).
+            برای دیدن موجودی لحظه‌ای از صفحه اصلی / وضعیت استفاده کنید.
           </p>
-          <div className="stats-summary-grid">
+
+          <div className="stats-summary-grid report-kpi-grid">
+            <div className="stats-card">
+              <span className="stats-card-label">PnL نمونه ریل</span>
+              <span className="stats-card-value" dir="ltr" style={{ color: totalPnl >= 0 ? '#2DD4A7' : '#FF5C72' }}>
+                {fmtPnl(totalPnl)} $
+              </span>
+              <span className="stats-card-sub">جمع تقریبی روی {sampleN} معامله بسته‌شده</span>
+            </div>
             <div className="stats-card">
               <span className="stats-card-label">Win Rate ریل</span>
               <span className="stats-card-value" dir="ltr">
-                {realStats.win_rate != null ? `${realStats.win_rate}%` : '—'}
+                {wr != null ? `${wr}%` : '—'}
               </span>
+              <span className="stats-card-sub">برد {wins} · باخت {losses}</span>
             </div>
             <div className="stats-card">
               <span className="stats-card-label">بسته / باز</span>
-              <span className="stats-card-value" dir="ltr">{realStats.closed ?? 0} / {realStats.open ?? 0}</span>
+              <span className="stats-card-value" dir="ltr">{sampleN} / {openN}</span>
+              <span className="stats-card-sub">نمونه گزارش · پوزیشن زنده</span>
             </div>
             <div className="stats-card">
-              <span className="stats-card-label">برد / باخت</span>
-              <span className="stats-card-value" dir="ltr">{realStats.wins ?? 0} / {realStats.losses ?? 0}</span>
+              <span className="stats-card-label">PnL امروز</span>
+              <span
+                className="stats-card-value"
+                dir="ltr"
+                style={{ color: (dailyPnl ?? 0) >= 0 ? '#2DD4A7' : '#FF5C72' }}
+              >
+                {dailyPnl == null ? '—' : `${fmtPnl(dailyPnl)} $`}
+              </span>
+              <span className="stats-card-sub">{dailyDate ? `تاریخ ${dailyDate}` : 'از /real-trade/status'}</span>
             </div>
             <div className="stats-card">
-              <span className="stats-card-label">PnL تقریبی</span>
-              <span className="stats-card-value" dir="ltr" style={{ color: (realStats.total_pnl_usdt || 0) >= 0 ? '#2DD4A7' : '#FF5C72' }}>
-                {(realStats.total_pnl_usdt || 0) >= 0 ? '+' : ''}{Number(realStats.total_pnl_usdt || 0).toFixed(3)} USDT
+              <span className="stats-card-label">Equity فعلی</span>
+              <span className="stats-card-value" dir="ltr">
+                {equity != null ? `${Number(equity).toFixed(2)} $` : '—'}
+              </span>
+              <span className="stats-card-sub">
+                آزاد: {available != null ? `${Number(available).toFixed(2)} $` : '—'}
               </span>
             </div>
           </div>
+
           {Array.isArray(realStats.recent) && realStats.recent.length > 0 && (
-            <div className="admin-table-wrap" style={{ marginTop: 10 }}>
-              <table className="admin-table">
+            <div className="admin-table-wrap report-table-wrap">
+              <table className="admin-table report-table">
                 <thead>
                   <tr>
                     <th>نماد</th>
                     <th>جهت</th>
-                    <th>وضعیت</th>
-                    <th>دلیل خروج</th>
+                    <th>ورود</th>
+                    <th>خروج</th>
                     <th>PnL</th>
-                    <th>امتیاز</th>
+                    <th>دلیل خروج</th>
+                    <th>نسخه</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {realStats.recent.slice(0, 15).map((r, i) => (
-                    <tr key={`${r.symbol}-${i}`}>
-                      <td>{r.symbol}</td>
-                      <td>{r.direction === 'long' ? 'لانگ' : r.direction === 'short' ? 'شورت' : r.direction}</td>
-                      <td>{r.status}</td>
-                      <td>{r.exit_reason || '—'}</td>
-                      <td dir="ltr" style={{ color: (r.approx_pnl || 0) >= 0 ? '#2DD4A7' : '#FF5C72' }}>
-                        {r.approx_pnl != null ? Number(r.approx_pnl).toFixed(4) : '—'}
-                      </td>
-                      <td dir="ltr">{r.score ?? '—'}</td>
-                    </tr>
-                  ))}
+                  {realStats.recent.slice(0, 20).map((r, i) => {
+                    const pnl = Number(r.approx_pnl)
+                    const pnlOk = Number.isFinite(pnl)
+                    return (
+                      <tr key={`${r.symbol}-${r.exit_reason || ''}-${i}`}>
+                        <td className="td-symbol">{r.symbol}</td>
+                        <td>{r.direction === 'long' ? 'لانگ' : r.direction === 'short' ? 'شورت' : (r.direction || '—')}</td>
+                        <td dir="ltr">{r.entry != null ? r.entry : '—'}</td>
+                        <td dir="ltr">{r.exit_price != null ? r.exit_price : '—'}</td>
+                        <td dir="ltr" className={pnlOk ? (pnl >= 0 ? 'pnl-pos' : 'pnl-neg') : ''}>
+                          {pnlOk ? fmtPnl(pnl) : '—'}
+                        </td>
+                        <td className="td-reason">{r.exit_reason || '—'}</td>
+                        <td dir="ltr" className="td-ver">{r.app_version || ver}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
           )}
-          {realStats.note && <p style={{ marginTop: 8, fontSize: 11, color: '#667' }}>{realStats.note}</p>}
+
+          <ul className="report-hints">
+            <li>ستون «نسخه» = نسخه بک‌اند هنگام بستن معامله (اگر ثبت شده باشد).</li>
+            <li>«PnL نمونه ریل» مجموع ردیف‌های همین جدول/نمونه است؛ معادل موجودی واریزی حساب نیست.</li>
+            <li>برای قضاوت نسخه جدید، به معاملات با نسخه فعلی و PnL امروز نگاه کنید.</li>
+          </ul>
+          {realStats.note && <p className="report-source-note">{realStats.note}</p>}
         </div>
       )}
-
-      <p style={{ marginTop: 16, fontSize: 12, color: '#667788', textAlign: 'center' }}>
-        آمار نسخه‌های قدیمی دمو و جدول‌های مقایسه‌ای حذف شد تا صفحه سبک بماند.
-        مبنای تصمیم: بلوک «معاملات واقعی Toobit» در بالا.
-      </p>
     </div>
   )
 }
@@ -414,18 +459,22 @@ export default function AdminPanel() {
   const loadData = async () => {
     setStatus('loading')
     try {
-      // V.2.10.33 UI: سبک — فقط آمار ریل (بدون دمو/تحلیل سنگین)
+      // سبک: آمار ریل + وضعیت زنده (بدون دمو سنگین)
       const [realRes, statusRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/real-trade/stats`).catch(() => null),
         authFetch(`${API_BASE_URL}/real-trade/status`).catch(() => null),
       ])
       let realData = null
+      let statusData = null
       try {
         if (realRes && realRes.ok) realData = await realRes.json()
       } catch (_) {}
-      if (!realData && statusRes && statusRes.ok) {
-        const st = await statusRes.json()
-        const recent = Array.isArray(st.recent_closed) ? st.recent_closed : []
+      try {
+        if (statusRes && statusRes.ok) statusData = await statusRes.json()
+      } catch (_) {}
+
+      if (!realData && statusData) {
+        const recent = Array.isArray(statusData.recent_closed) ? statusData.recent_closed : []
         let wins = 0
         let losses = 0
         let pnl = 0
@@ -439,15 +488,31 @@ export default function AdminPanel() {
         realData = {
           win_rate: n ? Math.round((wins / n) * 1000) / 10 : null,
           closed: n,
-          open: st.open_positions || 0,
+          open: statusData.open_positions || 0,
           wins,
           losses,
           total_pnl_usdt: pnl,
           recent,
           note: 'ساخته‌شده از /real-trade/status',
-          version: st.app_version,
+          version: statusData.app_version,
+          app_version: statusData.app_version,
         }
       }
+
+      if (realData && statusData) {
+        realData = {
+          ...realData,
+          app_version: realData.app_version || statusData.app_version || realData.version,
+          equity_usdt: statusData.equity_usdt,
+          available_usdt: statusData.available_usdt,
+          daily_pnl: statusData.daily_pnl,
+          open: statusData.open_positions ?? realData.open,
+        }
+        if ((!realData.recent || !realData.recent.length) && Array.isArray(statusData.recent_closed)) {
+          realData.recent = statusData.recent_closed
+        }
+      }
+
       setAnalyses([])
       setDemoTrades([])
       setStats(realData ? { win_rate: realData.win_rate } : null)
@@ -511,11 +576,11 @@ export default function AdminPanel() {
         <div>
           <h2 style={{ color: '#e8f0ff' }}>پنل گزارش</h2>
           <p className="admin-head-subtitle">
-            آمار Win Rate، سوابق تحلیل‌ها و تاریخچه‌ی معاملات دمو —{' '}
+            خلاصه معاملات واقعی Toobit و نسخه سیستم —{' '}
             {backendVersion ? (
-              <span dir="ltr">نسخه‌ی فعلی سیستم: {backendVersion}</span>
+              <span dir="ltr">نسخه فعلی: {backendVersion}</span>
             ) : (
-              'در حال بررسی نسخه‌ی فعلی سیستم…'
+              'در حال خواندن نسخه…'
             )}
           </p>
         </div>
