@@ -4,6 +4,19 @@ import { authFetch } from './auth'
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
 const LABELS = {
+  max_seconds_without_exchange_sl: 'سقف ثانیه بدون SL صرافی',
+  emergency_loss_min_elapsed_sec: 'حداقل زمان emergency (ثانیه)',
+  regime_tighten_only_if_loss: 'تنگ‌کردن SL فقط در ضرر',
+  regime_tighten_buffer_pct: 'بافر تنگ‌کردن SL (%)',
+  regime_tighten_min_elapsed_sec: 'حداقل زمان برای تنگ‌کردن SL (ثانیه)',
+  symbol_sl_lock_sec: 'مدت قفل نماد (ثانیه)',
+  symbol_sl_lock_lookback_sec: 'پنجره قفل نماد (ثانیه)',
+  symbol_sl_lock_count: 'تعداد SL برای قفل نماد',
+  post_sl_cooldown_sec: 'کول‌داون بعد از SL (ثانیه)',
+  btc_weak_min_conf: 'حداقل conf بیت‌کوین WEAK برای ورود آلت',
+  btc_chop_block_alts: 'مسدود کردن آلت وقتی BTC=CHOP',
+  enable_btc_chop_gate: 'گیت CHOP بیت‌کوین برای آلت',
+  enable_new_entries: 'اجازه ورود پوزیشن جدید (کلید اصلی)',
   min_confluence: 'حداقل امتیاز Confluence ریل',
   min_sl_distance_pct: 'حداقل فاصله SL (%)',
   max_sl_distance_pct: 'سقف فاصله SL (%)',
@@ -37,11 +50,19 @@ const LABELS = {
 
 const GROUPS = [
   {
+    title: 'کنترل اصلی',
+    keys: [
+      'enable_new_entries',
+    ],
+  },
+  {
     title: 'ورود ریل',
     keys: [
       'min_confluence', 'min_sl_distance_pct', 'max_sl_distance_pct',
       'min_rr', 'round_trip_friction_pct', 'min_tp_distance_pct',
-      'real_min_symbol_wr', 'symbol_cooldown_sec', 'post_close_cooldown_sec',
+      'real_min_symbol_wr', 'symbol_cooldown_sec', 'post_close_cooldown_sec', 'post_sl_cooldown_sec',
+      'symbol_sl_lock_count', 'symbol_sl_lock_lookback_sec', 'symbol_sl_lock_sec',
+      'enable_btc_chop_gate', 'btc_chop_block_alts', 'btc_weak_min_conf',
       'enable_chop_filter', 'chop_adx_threshold',
     ],
   },
@@ -50,19 +71,19 @@ const GROUPS = [
     keys: [
       'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'max_hold_seconds',
       'enable_float_profit_exit', 'float_only_if_slots_full', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
-      'enable_regime_tighten_sl',
+      'enable_regime_tighten_sl', 'regime_tighten_min_elapsed_sec', 'regime_tighten_buffer_pct', 'regime_tighten_only_if_loss',
     ],
   },
   {
     title: 'سرمایه و ریسک',
     keys: [
       'daily_loss_limit', 'margin_fraction', 'max_open_positions', 'leverage', 'max_same_direction',
-      'enable_emergency_loss_exit', 'max_unrealized_loss_pct',
+      'enable_emergency_loss_exit', 'max_unrealized_loss_pct', 'emergency_loss_min_elapsed_sec', 'max_seconds_without_exchange_sl',
     ],
   },
 ]
 
-export default function SettingsPanel() {
+exportexport default function SettingsPanel() {
   const [settings, setSettings] = useState({})
   const [defaults, setDefaults] = useState({})
   const [loading, setLoading] = useState(true)
