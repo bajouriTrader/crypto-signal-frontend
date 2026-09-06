@@ -83,7 +83,7 @@ const GROUPS = [
   },
 ]
 
-exportexport default function SettingsPanel() {
+export default function SettingsPanel() {
   const [settings, setSettings] = useState({})
   const [defaults, setDefaults] = useState({})
   const [loading, setLoading] = useState(true)
