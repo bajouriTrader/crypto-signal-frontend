@@ -22,6 +22,7 @@ const LABELS = {
   float_min_profit_pct: 'کف سود float (%)',
   float_min_elapsed_sec: 'حداقل زمان برای float (ثانیه)',
   enable_float_profit_exit: 'فعال بودن float سود',
+  float_only_if_slots_full: 'float فقط وقتی سقف پوزیشن پر است',
   enable_emergency_loss_exit: 'سقف اضطراری ضرر',
   max_unrealized_loss_pct: 'سقف ضرر شناور قیمتی (%)',
   enable_regime_tighten_sl: 'تنگ کردن SL در رژیم مخالف',
@@ -48,7 +49,7 @@ const GROUPS = [
     title: 'خروج / مدیریت سود',
     keys: [
       'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'max_hold_seconds',
-      'enable_float_profit_exit', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
+      'enable_float_profit_exit', 'float_only_if_slots_full', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
       'enable_regime_tighten_sl',
     ],
   },
