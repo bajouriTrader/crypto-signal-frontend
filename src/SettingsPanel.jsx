@@ -17,6 +17,9 @@ const LABELS = {
   btc_chop_block_alts: 'مسدود کردن آلت وقتی BTC=CHOP',
   enable_btc_chop_gate: 'گیت CHOP بیت‌کوین برای آلت',
   enable_new_entries: 'اجازه ورود پوزیشن جدید (کلید اصلی)',
+  auto_pause_entries_on_btc_regime: 'توقف خودکار ورود وقتی رژیم BTC ضعیف/CHOP',
+  auto_resume_min_btc_conf: 'حداقل conf بیت‌کوین برای ازسرگیری ورود خودکار',
+  auto_pause_on_btc_bear_stack: 'توقف ورود وقتی stack بیت‌کوین bear است',
   min_confluence: 'حداقل امتیاز Confluence ریل',
   min_sl_distance_pct: 'حداقل فاصله SL (%)',
   max_sl_distance_pct: 'سقف فاصله SL (%)',
@@ -53,6 +56,9 @@ const GROUPS = [
     title: 'کنترل اصلی',
     keys: [
       'enable_new_entries',
+      'auto_pause_entries_on_btc_regime',
+      'auto_resume_min_btc_conf',
+      'auto_pause_on_btc_bear_stack',
     ],
   },
   {
