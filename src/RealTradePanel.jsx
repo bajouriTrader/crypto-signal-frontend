@@ -447,6 +447,11 @@ export default function RealTradePanel() {
           ) : status ? (
             <span style={{ color: '#888', marginRight: 8 }}>○ خاموش</span>
           ) : null}
+          {status?.auto_entry_pause ? (
+            <span style={{ color: '#F5A623', marginRight: 8, fontWeight: 700 }}>⏸ pause ورود</span>
+          ) : status?.real_trading_enabled && status?.enable_new_entries !== false ? (
+            <span style={{ color: '#2DD4A7', marginRight: 8 }}>▶ خودکار</span>
+          ) : null}
         </span>
         {status && (
           <span style={{ fontSize: 12, color: '#8899aa' }} dir="ltr">
@@ -513,6 +518,45 @@ export default function RealTradePanel() {
                 <span>·</span>
                 <span>سقف {Math.round((mgr.max_hold_seconds || 0) / 3600)}h</span>
               </div>
+
+              {status.auto_entry_pause ? (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: '#2a1f0a',
+                    border: '1px solid #6b4e14',
+                    color: '#F5C542',
+                    fontSize: 12,
+                    lineHeight: 1.55,
+                    textAlign: 'right',
+                  }}
+                >
+                  <strong>⏸ ورود جدید متوقف است</strong>
+                  <div style={{ marginTop: 4, color: '#d4b86a', fontSize: 11 }}>
+                    {status.auto_entry_pause_reason || 'دلیل نامشخص'}
+                  </div>
+                  <div style={{ marginTop: 4, color: '#8a7a55', fontSize: 10 }}>
+                    پوزیشن‌های باز همچنان مدیریت می‌شوند · enable_new_entries={String(status.enable_new_entries)}
+                  </div>
+                </div>
+              ) : status.real_trading_enabled ? (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    background: '#0f221c',
+                    border: '1px solid #1e4a3a',
+                    color: '#2DD4A7',
+                    fontSize: 11,
+                    textAlign: 'right',
+                  }}
+                >
+                  ▶ ورود خودکار فعال است
+                </div>
+              ) : null}
 
               {tracked.length > 0 ? (
                 <div style={{ marginBottom: 12 }}>
