@@ -417,6 +417,8 @@ export default function RealTradePanel() {
   const mgr = status?.manager || {}
   const recent = status?.recent_closed || []
   const openPnl = tracked.reduce((s, t) => s + Number(t.unrealized_usdt || 0), 0)
+  const dailyPnl = Number(status?.daily_pnl?.pnl || 0)
+  const dailyDate = status?.daily_pnl?.date || ''
 
   return (
     <div className="real-trade-wrap" style={{ margin: '12px 0' }}>
@@ -497,6 +499,11 @@ export default function RealTradePanel() {
                   label="PnL باز"
                   value={`${openPnl >= 0 ? '+' : ''}${openPnl.toFixed(4)} $`}
                   color={openPnl >= 0 ? '#2DD4A7' : '#FF5C72'}
+                />
+                <Metric
+                  label={dailyDate ? `PnL امروز` : 'PnL امروز'}
+                  value={`${dailyPnl >= 0 ? '+' : ''}${dailyPnl.toFixed(2)} $`}
+                  color={dailyPnl > 0 ? '#2DD4A7' : dailyPnl < 0 ? '#FF5C72' : '#e8f0f8'}
                 />
               </div>
 
@@ -667,7 +674,10 @@ export default function RealTradePanel() {
 
       <style>{`
         @media (min-width: 520px) {
-          .rt-metrics { grid-template-columns: repeat(4, 1fr) !important; }
+          .rt-metrics { grid-template-columns: repeat(5, 1fr) !important; }
+        }
+        @media (max-width: 519px) {
+          .rt-metrics { grid-template-columns: repeat(2, 1fr) !important; }
         }
         .pos-levels {
           display: flex !important;
