@@ -9,12 +9,40 @@
 import { authFetch } from './auth'
 
 export function fmtTime(iso) {
-  if (!iso) return '—'
+  if (iso === null || iso === undefined || iso === '') return '—'
   try {
-    return new Date(iso).toLocaleString('fa-IR')
+    let d
+    if (typeof iso === 'number' || (typeof iso === 'string' && /^\d+(\.\d+)?$/.test(iso.trim()))) {
+      let n = Number(iso)
+      if (!Number.isFinite(n) || n <= 0) return '—'
+      // ثانیه یونیکس در برابر میلی‌ثانیه
+      if (n < 1e12) n = n * 1000
+      d = new Date(n)
+    } else {
+      d = new Date(iso)
+    }
+    if (Number.isNaN(d.getTime())) return '—'
+    // تاریخ + ساعت، لوکال کاربر (fa-IR)
+    return d.toLocaleString('fa-IR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    })
   } catch {
-    return iso
+    return String(iso)
   }
+}
+
+/** نسخه معامله — هرگز با نسخه فعلی سیستم جایگزین نشود */
+export function fmtTradeVersion(r) {
+  if (!r || typeof r !== 'object') return 'نامشخص'
+  const v = r.app_version_close || r.app_version || r.version
+  if (v === null || v === undefined || v === '') return 'نامشخص'
+  return String(v)
 }
 
 export function modeLabel(mode) {

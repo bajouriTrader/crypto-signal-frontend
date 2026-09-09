@@ -1996,3 +1996,15 @@ body {
     align-items: flex-start;
   }
 }
+
+/* V.2.10.57 report table */
+.report-table .td-time {
+  font-size: 0.78rem;
+  white-space: nowrap;
+  color: #9eb6cc;
+  min-width: 9.5rem;
+}
+.report-table .td-ver-unknown {
+  color: #8a9aab;
+  font-style: italic;
+}

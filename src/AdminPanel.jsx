@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 // reportExport.js استفاده می‌کنن.
 import {
   fmtTime,
+  fmtTradeVersion,
   modeLabel,
   statusLabel,
   outcomeGroup,
@@ -221,21 +222,30 @@ function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
               <table className="admin-table report-table">
                 <thead>
                   <tr>
+                    <th>زمان بستن</th>
                     <th>نماد</th>
                     <th>جهت</th>
                     <th>ورود</th>
                     <th>خروج</th>
                     <th>PnL</th>
                     <th>دلیل خروج</th>
-                    <th>نسخه</th>
+                    <th>نسخه بستن</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {realStats.recent.slice(0, 20).map((r, i) => {
+                  {[...realStats.recent]
+                    .map((r, i) => ({ r, i, t: Number(r.closed_at || r.opened_at || 0) }))
+                    .sort((a, b) => (b.t || 0) - (a.t || 0))
+                    .slice(0, 25)
+                    .map(({ r, i }) => {
                     const pnl = Number(r.approx_pnl)
                     const pnlOk = Number.isFinite(pnl)
+                    const verTrade = fmtTradeVersion(r)
                     return (
-                      <tr key={`${r.symbol}-${r.exit_reason || ''}-${i}`}>
+                      <tr key={`${r.symbol}-${r.closed_at || ''}-${r.exit_reason || ''}-${i}`}>
+                        <td dir="ltr" className="td-time" title={r.opened_at ? `باز: ${fmtTime(r.opened_at)}` : ''}>
+                          {fmtTime(r.closed_at)}
+                        </td>
                         <td className="td-symbol">{r.symbol}</td>
                         <td>{r.direction === 'long' ? 'لانگ' : r.direction === 'short' ? 'شورت' : (r.direction || '—')}</td>
                         <td dir="ltr">{r.entry != null ? r.entry : '—'}</td>
@@ -244,7 +254,9 @@ function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
                           {pnlOk ? fmtPnl(pnl) : '—'}
                         </td>
                         <td className="td-reason">{r.exit_reason || '—'}</td>
-                        <td dir="ltr" className="td-ver">{r.app_version || ver}</td>
+                        <td dir="ltr" className={`td-ver${verTrade === 'نامشخص' ? ' td-ver-unknown' : ''}`}>
+                          {verTrade}
+                        </td>
                       </tr>
                     )
                   })}
@@ -254,9 +266,10 @@ function StatsPanel({ stats, backendVersion, breakeven, realStats = null }) {
           )}
 
           <ul className="report-hints">
-            <li>ستون «نسخه» = نسخه بک‌اند هنگام بستن معامله (اگر ثبت شده باشد).</li>
-            <li>«PnL نمونه ریل» مجموع ردیف‌های همین جدول/نمونه است؛ معادل موجودی واریزی حساب نیست.</li>
-            <li>برای قضاوت نسخه جدید، به معاملات با نسخه فعلی و PnL امروز نگاه کنید.</li>
+            <li>ستون «زمان بستن» از تاریخچه صرافی (یا حافظه نرم‌افزار) است؛ روی سلول هاور کنید تا زمان باز شدن را ببینید.</li>
+            <li>ستون «نسخه بستن» فقط وقتی از حافظه سیستم match شده پر می‌شود — اگر «نامشخص» است یعنی معامله قبل از ثبت نسخه یا خارج از tracked بوده؛ با نسخه فعلی سیستم اشتباه گرفته نمی‌شود.</li>
+            <li>«PnL نمونه ریل» مجموع ردیف‌های همین جدول است؛ معادل موجودی واریزی حساب نیست.</li>
+            <li>برای قضاوت نسخه جدید، فقط ردیف‌هایی که نسخه بستن = نسخه فعلی است را مبنا قرار دهید.</li>
           </ul>
           {realStats.note && <p className="report-source-note">{realStats.note}</p>}
         </div>
