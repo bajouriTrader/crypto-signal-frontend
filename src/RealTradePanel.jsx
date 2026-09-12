@@ -358,6 +358,7 @@ function PosCard({ t, onClose, closing }) {
 export default function RealTradePanel() {
   const [open, setOpen] = useState(true)
   const [status, setStatus] = useState(null)
+  const [openDespitePause, setOpenDespitePause] = useState([])
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState(null)
   const [flash, setFlash] = useState(null)
@@ -543,6 +544,24 @@ export default function RealTradePanel() {
                   <strong>⏸ ورود جدید متوقف است</strong>
                   <div style={{ marginTop: 4, color: '#d4b86a', fontSize: 11 }}>
                     {status.auto_entry_pause_reason || 'دلیل نامشخص'}
+                  </div>
+                  <div style={{ marginTop: 6, color: '#2DD4A7', fontSize: 12, fontWeight: 600 }}>
+                    {openDespitePause.length > 0 ? (
+                      <>
+                        ▶ پوزیشن‌گیری باز برای:{' '}
+                        {openDespitePause.map((x, i) => (
+                          <span key={x.symbol}>
+                            {i > 0 ? ' · ' : ''}
+                            {x.symbol}
+                            <span style={{ color: '#7dceb0', fontWeight: 500 }}> (ADX {x.adx})</span>
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      <span style={{ color: '#8a9a8a', fontWeight: 500 }}>
+                        ▶ فعلاً هیچ نمادی با ADX≥{status?.entry_filters?.adx_strong_bypass_btc ?? 30} برای استثنا نیست
+                      </span>
+                    )}
                   </div>
                   <div style={{ marginTop: 4, color: '#8a7a55', fontSize: 10 }}>
                     پوزیشن‌های باز همچنان مدیریت می‌شوند · enable_new_entries={String(status.enable_new_entries)}
