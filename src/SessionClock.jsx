@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react'
 import { authFetch } from './auth'
 
 /**
- * سشن‌ها به UTC (بازار فارکس تقریبی).
+ * سشن‌ها به وقت تهران (UTC+3:30).
+ * open/close: ساعت اعشاری ۰–۲۴ به وقت تهران
  */
 const SESSIONS = [
-  { id: 'sydney', name: 'Sydney', nameFa: 'سیدنی', flag: '🇦🇺', open: 22, close: 7, color: '#5b8def' },
-  { id: 'tokyo', name: 'Tokyo', nameFa: 'توکیو', flag: '🇯🇵', open: 0, close: 9, color: '#e85d6c' },
-  { id: 'frankfurt', name: 'Frankfurt', nameFa: 'فرانکفورت', flag: '🇩🇪', open: 7, close: 16, color: '#c4a35a' },
-  { id: 'london', name: 'London', nameFa: 'لندن', flag: '🇬🇧', open: 8, close: 17, color: '#6ec6ff' },
-  { id: 'newyork', name: 'New York', nameFa: 'نیویورک', flag: '🇺🇸', open: 13, close: 22, color: '#3ecf8e' },
+  { id: 'sydney', name: 'Sydney', nameFa: 'سیدنی', flag: '🇦🇺', open: 1.5, close: 10.5, color: '#5b8def' },
+  { id: 'tokyo', name: 'Tokyo', nameFa: 'توکیو', flag: '🇯🇵', open: 3.5, close: 12.5, color: '#e85d6c' },
+  { id: 'frankfurt', name: 'Frankfurt', nameFa: 'فرانکفورت', flag: '🇩🇪', open: 10.5, close: 19.5, color: '#c4a35a' },
+  { id: 'london', name: 'London', nameFa: 'لندن', flag: '🇬🇧', open: 11.5, close: 20.5, color: '#6ec6ff' },
+  { id: 'newyork', name: 'New York', nameFa: 'نیویورک', flag: '🇺🇸', open: 16.5, close: 1.5, color: '#3ecf8e' },
 ]
 
 function tehranParts(date = new Date()) {
@@ -27,11 +28,23 @@ function tehranParts(date = new Date()) {
   return {
     clock: `${parts.hour}:${parts.minute}:${parts.second}`,
     day: `${parts.weekday} ${parts.day}/${parts.month}`,
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    second: Number(parts.second),
   }
 }
 
-function utcHourFloat(date = new Date()) {
-  return date.getUTCHours() + date.getUTCMinutes() / 60 + date.getUTCSeconds() / 3600
+/** ساعت اعشاری فعلی به وقت تهران (۰–۲۴) */
+function tehranHourFloat(date = new Date()) {
+  const p = tehranParts(date)
+  return p.hour + p.minute / 60 + p.second / 3600
+}
+
+function formatTehranClock(hFloat) {
+  let h = Math.floor(hFloat) % 24
+  if (h < 0) h += 24
+  const m = Math.round((hFloat - Math.floor(hFloat)) * 60) % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
 function isOpen(openH, closeH, nowH) {
@@ -67,11 +80,13 @@ function sessionStatus(s, nowH) {
     return {
       open: true,
       label: `${formatDuration(minutesUntil(s.open, s.close, nowH, true))} تا پایان`,
+      range: `${formatTehranClock(s.open)}–${formatTehranClock(s.close)}`,
     }
   }
   return {
     open: false,
     label: `${formatDuration(minutesUntil(s.open, s.close, nowH, false))} تا شروع`,
+    range: `${formatTehranClock(s.open)}–${formatTehranClock(s.close)}`,
   }
 }
 
@@ -108,7 +123,7 @@ export default function SessionClock() {
           })
         }
       } catch (e) {
-        /* بی‌صدا — قبل از لاگین ممکن است 401 */
+        /* قبل از لاگین ممکن است 401 */
       }
     }
     load()
@@ -121,7 +136,7 @@ export default function SessionClock() {
 
   const now = new Date(tick)
   const { clock, day } = tehranParts(now)
-  const nowH = utcHourFloat(now)
+  const nowH = tehranHourFloat(now)
   const nowPct = (nowH / 24) * 100
 
   const statuses = useMemo(
@@ -134,7 +149,7 @@ export default function SessionClock() {
   const events = news.today_events || []
 
   return (
-    <div className="ff-row" title="سشن‌ها و اخبار روز">
+    <div className="ff-row" title="سشن‌ها و اخبار — همه ساعت‌ها به وقت تهران">
       <div className="ff-sessions ff-sessions-compact">
         <div className="ff-sessions-head">
           <div className="ff-sessions-tehran">
@@ -163,7 +178,7 @@ export default function SessionClock() {
                     background: s.color,
                     opacity: isOpen(s.open, s.close, nowH) ? 0.85 : 0.28,
                   }}
-                  title={s.nameFa}
+                  title={`${s.nameFa} ${formatTehranClock(s.open)}–${formatTehranClock(s.close)} تهران`}
                 />
               ))
             )}
@@ -188,10 +203,12 @@ export default function SessionClock() {
                   ? { borderColor: s.color, boxShadow: `0 0 8px ${s.color}33` }
                   : undefined
               }
+              title={`${s.nameFa}: ${s.st.range} تهران`}
             >
               <span className="ff-pill-flag">{s.flag}</span>
               <div className="ff-pill-body">
                 <div className="ff-pill-name">{s.nameFa}</div>
+                <div className="ff-pill-meta">{s.st.range}</div>
                 <div className="ff-pill-meta">{s.st.label}</div>
               </div>
             </div>
@@ -201,7 +218,7 @@ export default function SessionClock() {
 
       <div className={`ff-news ${news.active ? 'ff-news-active' : ''}`}>
         <div className="ff-news-head">
-          <span className="ff-news-title">📰 اخبار امروز</span>
+          <span className="ff-news-title">📰 اخبار امروز (تهران)</span>
           {news.active && <span className="ff-news-badge">توقف ورود</span>}
         </div>
         {events.length === 0 ? (
