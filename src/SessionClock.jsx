@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { authFetch } from './auth'
 
+const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
+
 /**
  * سشن‌ها به وقت تهران (UTC+3:30).
  * open/close: ساعت اعشاری ۰–۲۴ به وقت تهران
@@ -109,23 +111,36 @@ export default function SessionClock() {
     let cancelled = false
     const load = async () => {
       try {
-        const res = await authFetch('/real-trade/status')
-        if (!res.ok) return
-        const data = await res.json()
-        const nb = data.news_blackout || {}
-        if (!cancelled) {
+        let nb = null
+        try {
+          const r0 = await fetch(`${API_BASE_URL}/news-calendar`)
+          if (r0.ok) {
+            const j = await r0.json()
+            if (j && j.ok !== false) nb = j
+          }
+        } catch (e0) {}
+        if (!nb) {
+          try {
+            const res = await authFetch(`${API_BASE_URL}/real-trade/status`)
+            if (res.ok) {
+              const data = await res.json()
+              nb = data.news_blackout && typeof data.news_blackout === 'object' ? data.news_blackout : null
+            }
+          } catch (e1) {}
+        }
+        if (!cancelled && nb) {
           setNews({
             today_events: nb.today_events || [],
             upcoming_events: nb.upcoming_events || [],
             active: !!nb.active,
-            event_title: nb.event_title || nb.event?.title,
+            event_title: nb.event_title || (nb.event && nb.event.title),
             next_window: nb.next_window || null,
             reason: nb.reason || '',
             source: nb.source || null,
           })
         }
       } catch (e) {
-        /* قبل از لاگین ممکن است 401 */
+        /* ignore */
       }
     }
     load()

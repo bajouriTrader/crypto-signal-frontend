@@ -1,10 +1,11 @@
-V.2.10.71 — فیکس تقویم اخبار
+V.2.10.72 — فیکس نمایش اخبار
 
-علت جدول خالی: منبع ForexFactory با 429 قطع بود.
-الان منبع اول: biquote.io (رایگان)
+باگ اصلی: فیلد news_blackout در JSON وضعیت ساخته می‌شد ولی در return نمی‌آمد.
+الان:
+1. status.news_blackout کامل برمی‌گردد
+2. GET /news-calendar عمومی (بدون لاگین)
+3. seed fallback اگر API از Space قطع باشد
+4. فرانت از /news-calendar می‌خواند
 
-نرخ بهره فدرال این هفته: 2026-09-16 حدود 18:00 UTC ≈ 21:30 تهران
-(نه امروز 14 سپتامبر)
-
-بک‌اند: news_blackout.py, real_trade.py, runtime_settings.py, version.py
-فرانت: SessionClock.jsx (اگر امروز خالی → upcoming 72h نشان می‌دهد)
+بک‌اند: news_blackout.py, real_trade.py, app.py, runtime_settings.py, version.py
+فرانت: SessionClock.jsx
