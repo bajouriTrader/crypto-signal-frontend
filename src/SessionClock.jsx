@@ -116,10 +116,12 @@ export default function SessionClock() {
         if (!cancelled) {
           setNews({
             today_events: nb.today_events || [],
+            upcoming_events: nb.upcoming_events || [],
             active: !!nb.active,
             event_title: nb.event_title || nb.event?.title,
             next_window: nb.next_window || null,
             reason: nb.reason || '',
+            source: nb.source || null,
           })
         }
       } catch (e) {
@@ -221,30 +223,45 @@ export default function SessionClock() {
           <span className="ff-news-title">📰 اخبار امروز (تهران)</span>
           {news.active && <span className="ff-news-badge">توقف ورود</span>}
         </div>
-        {events.length === 0 ? (
-          <div className="ff-news-empty">
-            {news.next_window?.event_title ? (
-              <>
-                خبر high-impact دیگری برای امروز ثبت نشده
-                <div className="ff-news-next">
-                  بعدی: {news.next_window.event_title}
+        {(() => {
+          const list = events.length > 0 ? events : (news.upcoming_events || [])
+          const isUpcoming = events.length === 0 && list.length > 0
+          if (list.length === 0) {
+            return (
+              <div className="ff-news-empty">
+                {news.next_window?.event_title ? (
+                  <>
+                    خبر high-impact برای امروز نیست
+                    <div className="ff-news-next">بعدی: {news.next_window.event_title}</div>
+                  </>
+                ) : (
+                  'تقویم در دسترس نیست — چند دقیقه دیگر دوباره تلاش می‌شود'
+                )}
+              </div>
+            )
+          }
+          return (
+            <>
+              {isUpcoming && (
+                <div className="ff-news-empty" style={{ marginBottom: 4 }}>
+                  امروز خالی · نزدیک‌ترین‌ها (۷۲س):
                 </div>
-              </>
-            ) : (
-              'خبر high-impact برای امروز نیست / تقویم در دسترس نیست'
-            )}
-          </div>
-        ) : (
-          <ul className="ff-news-list">
-            {events.slice(0, 6).map((ev, i) => (
-              <li key={`${ev.ts}-${i}`} className="ff-news-item">
-                <span className="ff-news-time">{ev.time_tehran || '—'}</span>
-                <span className="ff-news-name">{ev.title_fa || ev.title || 'خبر'}</span>
-                <span className="ff-news-impact">مهم</span>
-              </li>
-            ))}
-          </ul>
-        )}
+              )}
+              <ul className="ff-news-list">
+                {list.slice(0, 6).map((ev, i) => (
+                  <li key={`${ev.ts}-${i}`} className="ff-news-item">
+                    <span className="ff-news-time">
+                      {isUpcoming && ev.date_tehran ? `${ev.date_tehran} ` : ''}
+                      {ev.time_tehran || '—'}
+                    </span>
+                    <span className="ff-news-name">{ev.title_fa || ev.title || 'خبر'}</span>
+                    <span className="ff-news-impact">مهم</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )
+        })()}
       </div>
     </div>
   )
