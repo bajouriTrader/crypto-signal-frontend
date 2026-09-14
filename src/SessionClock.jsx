@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { authFetch } from './auth'
 
 /**
  * سشن‌ها به UTC (بازار فارکس تقریبی).
- * open/close: ساعت اعشاری ۰–۲۴
  */
 const SESSIONS = [
   { id: 'sydney', name: 'Sydney', nameFa: 'سیدنی', flag: '🇦🇺', open: 22, close: 7, color: '#5b8def' },
@@ -49,8 +49,8 @@ function minutesUntil(openH, closeH, nowH, wantClose) {
 function formatDuration(mins) {
   const h = Math.floor(mins / 60)
   const m = mins % 60
-  if (h <= 0) return `${m}m`
-  return `${h}h ${m}m`
+  if (h <= 0) return `${m}د`
+  return `${h}س ${m}د`
 }
 
 function segments(openH, closeH) {
@@ -66,12 +66,12 @@ function sessionStatus(s, nowH) {
   if (open) {
     return {
       open: true,
-      label: `Ends in ${formatDuration(minutesUntil(s.open, s.close, nowH, true))}`,
+      label: `${formatDuration(minutesUntil(s.open, s.close, nowH, true))} تا پایان`,
     }
   }
   return {
     open: false,
-    label: `Begins in ${formatDuration(minutesUntil(s.open, s.close, nowH, false))}`,
+    label: `${formatDuration(minutesUntil(s.open, s.close, nowH, false))} تا شروع`,
   }
 }
 
@@ -83,10 +83,40 @@ function currentOverlaps(nowH) {
 
 export default function SessionClock() {
   const [tick, setTick] = useState(() => Date.now())
+  const [news, setNews] = useState({ today_events: [], active: false, next_window: null })
 
   useEffect(() => {
     const id = setInterval(() => setTick(Date.now()), 1000)
     return () => clearInterval(id)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const res = await authFetch('/real-trade/status')
+        if (!res.ok) return
+        const data = await res.json()
+        const nb = data.news_blackout || {}
+        if (!cancelled) {
+          setNews({
+            today_events: nb.today_events || [],
+            active: !!nb.active,
+            event_title: nb.event_title || nb.event?.title,
+            next_window: nb.next_window || null,
+            reason: nb.reason || '',
+          })
+        }
+      } catch (e) {
+        /* بی‌صدا — قبل از لاگین ممکن است 401 */
+      }
+    }
+    load()
+    const id = setInterval(load, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(id)
+    }
   }, [])
 
   const now = new Date(tick)
@@ -96,74 +126,108 @@ export default function SessionClock() {
 
   const statuses = useMemo(
     () => SESSIONS.map((s) => ({ ...s, st: sessionStatus(s, nowH) })),
-    // nowH changes every second via tick
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tick]
   )
   const overlaps = useMemo(() => currentOverlaps(nowH), [tick])
 
-  return (
-    <div className="ff-sessions" title="سشن‌های معاملاتی — ساعت تهران">
-      <div className="ff-sessions-head">
-        <div className="ff-sessions-tehran">
-          <span className="ff-sessions-tehran-label">تهران</span>
-          <span className="ff-sessions-tehran-time">{clock}</span>
-          <span className="ff-sessions-tehran-day">{day}</span>
-        </div>
-        {overlaps.length > 0 && (
-          <div className="ff-overlap-badge">
-            <span className="ff-overlap-dot" />
-            هم‌پوشانی: {overlaps[0]}
-          </div>
-        )}
-      </div>
+  const events = news.today_events || []
 
-      <div className="ff-timeline">
-        <div className="ff-timeline-track">
-          {SESSIONS.map((s) =>
-            segments(s.open, s.close).map(([a, b], i) => (
-              <div
-                key={`${s.id}-${i}`}
-                className={`ff-seg ${isOpen(s.open, s.close, nowH) ? 'ff-seg-live' : ''}`}
-                style={{
-                  left: `${(a / 24) * 100}%`,
-                  width: `${((b - a) / 24) * 100}%`,
-                  background: s.color,
-                  opacity: isOpen(s.open, s.close, nowH) ? 0.85 : 0.28,
-                }}
-                title={s.nameFa}
-              />
-            ))
+  return (
+    <div className="ff-row" title="سشن‌ها و اخبار روز">
+      <div className="ff-sessions ff-sessions-compact">
+        <div className="ff-sessions-head">
+          <div className="ff-sessions-tehran">
+            <span className="ff-sessions-tehran-label">تهران</span>
+            <span className="ff-sessions-tehran-time">{clock}</span>
+            <span className="ff-sessions-tehran-day">{day}</span>
+          </div>
+          {overlaps.length > 0 && (
+            <div className="ff-overlap-badge">
+              <span className="ff-overlap-dot" />
+              {overlaps[0]}
+            </div>
           )}
-          <div className="ff-now-line" style={{ left: `${nowPct}%` }} />
         </div>
-        <div className="ff-timeline-hours">
-          {[0, 4, 8, 12, 16, 20, 24].map((h) => (
-            <span key={h} style={{ left: `${(h / 24) * 100}%` }}>
-              {String(h).padStart(2, '0')}
-            </span>
+
+        <div className="ff-timeline">
+          <div className="ff-timeline-track ff-timeline-track-sm">
+            {SESSIONS.map((s) =>
+              segments(s.open, s.close).map(([a, b], i) => (
+                <div
+                  key={`${s.id}-${i}`}
+                  className={`ff-seg ${isOpen(s.open, s.close, nowH) ? 'ff-seg-live' : ''}`}
+                  style={{
+                    left: `${(a / 24) * 100}%`,
+                    width: `${((b - a) / 24) * 100}%`,
+                    background: s.color,
+                    opacity: isOpen(s.open, s.close, nowH) ? 0.85 : 0.28,
+                  }}
+                  title={s.nameFa}
+                />
+              ))
+            )}
+            <div className="ff-now-line" style={{ left: `${nowPct}%` }} />
+          </div>
+          <div className="ff-timeline-hours">
+            {[0, 6, 12, 18, 24].map((h) => (
+              <span key={h} style={{ left: `${(h / 24) * 100}%` }}>
+                {String(h).padStart(2, '0')}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="ff-pills ff-pills-compact">
+          {statuses.map((s) => (
+            <div
+              key={s.id}
+              className={`ff-pill ${s.st.open ? 'ff-pill-open' : 'ff-pill-closed'}`}
+              style={
+                s.st.open
+                  ? { borderColor: s.color, boxShadow: `0 0 8px ${s.color}33` }
+                  : undefined
+              }
+            >
+              <span className="ff-pill-flag">{s.flag}</span>
+              <div className="ff-pill-body">
+                <div className="ff-pill-name">{s.nameFa}</div>
+                <div className="ff-pill-meta">{s.st.label}</div>
+              </div>
+            </div>
           ))}
         </div>
       </div>
 
-      <div className="ff-pills">
-        {statuses.map((s) => (
-          <div
-            key={s.id}
-            className={`ff-pill ${s.st.open ? 'ff-pill-open' : 'ff-pill-closed'}`}
-            style={
-              s.st.open
-                ? { borderColor: s.color, boxShadow: `0 0 12px ${s.color}33` }
-                : undefined
-            }
-          >
-            <span className="ff-pill-flag">{s.flag}</span>
-            <div className="ff-pill-body">
-              <div className="ff-pill-name">{s.name}</div>
-              <div className="ff-pill-meta">{s.st.label}</div>
-            </div>
+      <div className={`ff-news ${news.active ? 'ff-news-active' : ''}`}>
+        <div className="ff-news-head">
+          <span className="ff-news-title">📰 اخبار امروز</span>
+          {news.active && <span className="ff-news-badge">توقف ورود</span>}
+        </div>
+        {events.length === 0 ? (
+          <div className="ff-news-empty">
+            {news.next_window?.event_title ? (
+              <>
+                خبر high-impact دیگری برای امروز ثبت نشده
+                <div className="ff-news-next">
+                  بعدی: {news.next_window.event_title}
+                </div>
+              </>
+            ) : (
+              'خبر high-impact برای امروز نیست / تقویم در دسترس نیست'
+            )}
           </div>
-        ))}
+        ) : (
+          <ul className="ff-news-list">
+            {events.slice(0, 6).map((ev, i) => (
+              <li key={`${ev.ts}-${i}`} className="ff-news-item">
+                <span className="ff-news-time">{ev.time_tehran || '—'}</span>
+                <span className="ff-news-name">{ev.title_fa || ev.title || 'خبر'}</span>
+                <span className="ff-news-impact">مهم</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )

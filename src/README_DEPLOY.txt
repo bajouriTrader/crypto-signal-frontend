@@ -1,15 +1,11 @@
-V.2.10.69
+V.2.10.70
 
-بک‌اند HF:
-- news_blackout.py
-- real_trade.py
-- runtime_settings.py
-- version.py
+بک‌اند:
+- news_blackout.py (today_events + title_fa)
+- real_trade.py, runtime_settings.py, version.py
 
 فرانت:
-- src/RealTradePanel.jsx
+- src/SessionClock.jsx  (فشرده + لیست اخبار فارسی)
+- src/index.css         (کلاس‌های ff-row / ff-news)
 
-بنر بنفش وقتی news_blackout.active:
-  خبر: <عنوان>
-  از <ساعت تهران> تا <ساعت تهران>
-اگر فعال نباشد ولی next_window باشد: پیش‌نمایش خبر بعدی
+کادر سشن کوچک‌تر شد؛ کنارش «اخبار امروز» با ساعت تهران و عنوان فارسی.
