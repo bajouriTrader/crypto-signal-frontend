@@ -39,6 +39,23 @@ function Metric({ label, value, color }) {
 }
 
 /** نوار مسیر قیمت: همیشه LTR — چپ=SL · راست=TP · نشانگر=قیمت فعلی */
+
+function formatTehran(isoOrTs) {
+  try {
+    const d = typeof isoOrTs === 'number' ? new Date(isoOrTs * 1000) : new Date(isoOrTs)
+    if (Number.isNaN(d.getTime())) return '—'
+    return d.toLocaleString('fa-IR', {
+      timeZone: 'Asia/Tehran',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch (e) {
+    return '—'
+  }
+}
+
 function formatElapsed(sec) {
   const n = Number(sec)
   if (!Number.isFinite(n) || n < 0) return '—'
@@ -526,6 +543,58 @@ export default function RealTradePanel() {
                 <span>·</span>
                 <span>سقف {Math.round((mgr.max_hold_seconds || 0) / 3600)}h</span>
               </div>
+
+
+              {status.news_blackout?.active ? (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: '#1a1530',
+                    border: '1px solid #5b4a9e',
+                    color: '#C4B5FD',
+                    fontSize: 12,
+                    lineHeight: 1.6,
+                    textAlign: 'right',
+                  }}
+                >
+                  <strong>📰 توقف به‌خاطر خبر مهم</strong>
+                  <div style={{ marginTop: 6, color: '#E9D5FF', fontSize: 12, fontWeight: 600 }}>
+                    خبر: {status.news_blackout.event_title || status.news_blackout.event?.title || 'high-impact USD'}
+                  </div>
+                  <div style={{ marginTop: 4, color: '#A78BFA', fontSize: 11 }} dir="ltr">
+                    از {formatTehran(status.news_blackout.window_start_iso || status.news_blackout.window_start_ts)}
+                    {' '}تا{' '}
+                    {formatTehran(status.news_blackout.window_end_iso || status.news_blackout.window_end_ts)}
+                    <span style={{ color: '#7C6BA8' }}> (تهران)</span>
+                  </div>
+                  <div style={{ marginTop: 4, color: '#8B7BB8', fontSize: 10 }}>
+                    در این بازه پوزیشن جدید باز نمی‌شود · پوزیشن‌های باز مدیریت می‌شوند
+                  </div>
+                </div>
+              ) : status.news_blackout?.next_window?.event_title ? (
+                <div
+                  style={{
+                    marginBottom: 10,
+                    padding: '8px 12px',
+                    borderRadius: 10,
+                    background: '#12182a',
+                    border: '1px solid #2a3550',
+                    color: '#8899bb',
+                    fontSize: 11,
+                    lineHeight: 1.5,
+                    textAlign: 'right',
+                  }}
+                >
+                  📅 خبر بعدی: <span style={{ color: '#c5d0e8' }}>{status.news_blackout.next_window.event_title}</span>
+                  <span dir="ltr" style={{ display: 'block', marginTop: 2, color: '#6a7a9a' }}>
+                    پنجره: {formatTehran(status.news_blackout.next_window.window_start_iso)}
+                    {' → '}
+                    {formatTehran(status.news_blackout.next_window.window_end_iso)}
+                  </span>
+                </div>
+              ) : null}
 
               {status.auto_entry_pause ? (
                 <div

@@ -1,14 +1,15 @@
-V.2.10.67
+V.2.10.69
 
-بک‌اند HF (README.md Space را عوض نکن):
+بک‌اند HF:
+- news_blackout.py
 - real_trade.py
-- runtime_settings.py  
+- runtime_settings.py
 - version.py
-- app.py  (سقف regime-status به ۱۴ نماد)
 
-فرانت GitHub Pages (شاخه SC / main):
+فرانت:
 - src/RealTradePanel.jsx
 
-کادر زرد pause:
-- خط سبز: «پوزیشن‌گیری باز برای: BNB (ADX 33) · …»
-- اگر هیچ‌کدام ADX≥آستانه نداشتند پیام خاکستری می‌آید
+بنر بنفش وقتی news_blackout.active:
+  خبر: <عنوان>
+  از <ساعت تهران> تا <ساعت تهران>
+اگر فعال نباشد ولی next_window باشد: پیش‌نمایش خبر بعدی
