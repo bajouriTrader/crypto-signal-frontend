@@ -3,57 +3,77 @@ import { authFetch } from './auth'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 
+/** English labels only — key names match runtime_settings / real_trade */
 const LABELS = {
-  max_seconds_without_exchange_sl: 'سقف ثانیه بدون SL صرافی',
-  emergency_loss_min_elapsed_sec: 'حداقل زمان emergency (ثانیه)',
-  regime_tighten_only_if_loss: 'تنگ‌کردن SL فقط در ضرر',
-  regime_tighten_buffer_pct: 'بافر تنگ‌کردن SL (%)',
-  regime_tighten_min_elapsed_sec: 'حداقل زمان برای تنگ‌کردن SL (ثانیه)',
-  symbol_sl_lock_sec: 'مدت قفل نماد (ثانیه)',
-  symbol_sl_lock_lookback_sec: 'پنجره قفل نماد (ثانیه)',
-  symbol_sl_lock_count: 'تعداد SL برای قفل نماد',
-  post_sl_cooldown_sec: 'کول‌داون بعد از SL (ثانیه)',
-  btc_weak_min_conf: 'حداقل conf بیت‌کوین WEAK برای ورود آلت',
-  btc_chop_block_alts: 'مسدود کردن آلت وقتی BTC=CHOP',
-  enable_btc_chop_gate: 'گیت CHOP بیت‌کوین برای آلت',
-  enable_new_entries: 'اجازه ورود پوزیشن جدید (کلید اصلی)',
-  auto_pause_entries_on_btc_regime: 'توقف خودکار ورود وقتی رژیم BTC ضعیف/CHOP',
-  auto_resume_min_btc_conf: 'حداقل conf بیت‌کوین برای ازسرگیری ورود خودکار',
-  auto_pause_on_btc_bear_stack: 'توقف ورود وقتی stack بیت‌کوین bear است',
-  min_confluence: 'حداقل امتیاز Confluence ریل',
-  min_sl_distance_pct: 'حداقل فاصله SL (%)',
-  max_sl_distance_pct: 'سقف فاصله SL (%)',
-  min_rr: 'حداقل R:R خالص (بعد از فی)',
-  round_trip_friction_pct: 'اصطکاک رفت‌وبرگشت فی+اسلیپ (%)',
-  min_tp_distance_pct: 'حداقل فاصله TP (%)',
-  real_min_symbol_wr: 'حداقل WR دمو نماد',
-  symbol_cooldown_sec: 'کول‌داون نماد بعد از رد (ثانیه)',
-  post_close_cooldown_sec: 'کول‌داون بعد از بستن (ثانیه)',
-  profit_lock_trigger: 'قفل سود (نسبت مسیر تا TP)',
-  min_profit_pct: 'حداقل سود برای قفل (%)',
-  breakeven_trigger_pct: 'آستانه BE روی صرافی (%)',
-  max_hold_seconds: 'سقف نگهداری (ثانیه)',
-  float_min_r: 'حداقل سود float بر حسب R',
-  float_min_profit_usdt: 'کف سود float (USDT)',
-  float_min_profit_pct: 'کف سود float (%)',
-  float_min_elapsed_sec: 'حداقل زمان برای float (ثانیه)',
-  enable_float_profit_exit: 'فعال بودن float سود',
-  float_only_if_slots_full: 'float فقط وقتی سقف پوزیشن پر است',
-  enable_emergency_loss_exit: 'سقف اضطراری ضرر',
-  max_unrealized_loss_pct: 'سقف ضرر شناور قیمتی (%)',
-  enable_regime_tighten_sl: 'تنگ کردن SL در رژیم مخالف',
-  daily_loss_limit: 'سقف ضرر روزانه (USDT)',
-  margin_fraction: 'کسر مارجین از موجودی',
-  max_open_positions: 'سقف پوزیشن همزمان',
-  leverage: 'اهرم',
-  enable_chop_filter: 'فیلتر بازار چاپی (ADX)',
-  chop_adx_threshold: 'آستانه ADX چاپی',
-  max_same_direction: 'سقف پوزیشن هم‌جهت',
+  // Main control
+  enable_new_entries: 'enable_new_entries — Allow new real entries',
+  auto_pause_entries_on_btc_regime: 'auto_pause_entries_on_btc_regime — Pause on BTC WEAK/CHOP',
+  auto_resume_min_btc_conf: 'auto_resume_min_btc_conf — Min BTC conf to resume',
+  auto_pause_on_btc_bear_stack: 'auto_pause_on_btc_bear_stack — Pause when BTC stack is bear',
+
+  // Real entry
+  min_confluence: 'min_confluence — Min real confluence score',
+  min_sl_distance_pct: 'min_sl_distance_pct — Min SL distance %',
+  max_sl_distance_pct: 'max_sl_distance_pct — Max SL distance %',
+  min_rr: 'min_rr — Min net R:R (after fees)',
+  round_trip_friction_pct: 'round_trip_friction_pct — Fee+slippage friction %',
+  min_tp_distance_pct: 'min_tp_distance_pct — Min TP distance %',
+  real_min_symbol_wr: 'real_min_symbol_wr — Min demo symbol WR %',
+  symbol_cooldown_sec: 'symbol_cooldown_sec — Cooldown after reject (sec)',
+  post_close_cooldown_sec: 'post_close_cooldown_sec — Cooldown after close (sec)',
+  post_sl_cooldown_sec: 'post_sl_cooldown_sec — Cooldown after SL (sec)',
+  symbol_sl_lock_count: 'symbol_sl_lock_count — SL count to lock symbol',
+  symbol_sl_lock_lookback_sec: 'symbol_sl_lock_lookback_sec — Symbol lock lookback (sec)',
+  symbol_sl_lock_sec: 'symbol_sl_lock_sec — Symbol lock duration (sec)',
+  enable_btc_chop_gate: 'enable_btc_chop_gate — BTC CHOP gate for alts',
+  btc_chop_block_alts: 'btc_chop_block_alts — Block alts when BTC=CHOP',
+  btc_weak_min_conf: 'btc_weak_min_conf — Min BTC conf when WEAK (alts)',
+  enable_chop_filter: 'enable_chop_filter — Chop market filter (legacy ADX)',
+  chop_adx_threshold: 'chop_adx_threshold — Chop ADX threshold (NOT entry gate)',
+
+  // ADX entry gate (was missing from UI — this is what blocks SOL at 22.9)
+  enable_min_adx_entry: 'enable_min_adx_entry — Enable min ADX entry gate',
+  min_adx_1h_for_entry: 'min_adx_1h_for_entry — Min symbol ADX 1h to open',
+  min_btc_adx_1h_for_alt: 'min_btc_adx_1h_for_alt — Min BTC ADX when opening alts',
+  adx_strong_bypass_btc: 'adx_strong_bypass_btc — Symbol ADX ≥ this bypasses BTC pause',
+  enable_strong_adx_bypass_btc_pause: 'enable_strong_adx_bypass_btc_pause — Allow strong-ADX BTC bypass',
+
+  // News blackout
+  enable_news_blackout: 'enable_news_blackout — Block entries around high-impact USD news',
+  news_blackout_minutes_before: 'news_blackout_minutes_before — Minutes before event',
+  news_blackout_minutes_after: 'news_blackout_minutes_after — Minutes after event',
+
+  // Exit / profit
+  profit_lock_trigger: 'profit_lock_trigger — Profit lock (progress to TP)',
+  min_profit_pct: 'min_profit_pct — Min profit % to lock',
+  breakeven_trigger_pct: 'breakeven_trigger_pct — Exchange BE trigger %',
+  max_hold_seconds: 'max_hold_seconds — Max hold (sec)',
+  float_min_r: 'float_min_r — Min float profit in R',
+  float_min_profit_usdt: 'float_min_profit_usdt — Min float profit USDT',
+  float_min_profit_pct: 'float_min_profit_pct — Min float profit %',
+  float_min_elapsed_sec: 'float_min_elapsed_sec — Min time for float (sec)',
+  enable_float_profit_exit: 'enable_float_profit_exit — Float profit exit',
+  float_only_if_slots_full: 'float_only_if_slots_full — Float only if slots full',
+  enable_regime_tighten_sl: 'enable_regime_tighten_sl — Tighten SL on adverse regime',
+  regime_tighten_min_elapsed_sec: 'regime_tighten_min_elapsed_sec — Min time before tighten (sec)',
+  regime_tighten_buffer_pct: 'regime_tighten_buffer_pct — Tighten buffer %',
+  regime_tighten_only_if_loss: 'regime_tighten_only_if_loss — Tighten only if in loss',
+
+  // Capital / risk
+  daily_loss_limit: 'daily_loss_limit — Daily loss limit USDT',
+  margin_fraction: 'margin_fraction — Margin fraction of equity',
+  max_open_positions: 'max_open_positions — Max concurrent positions',
+  leverage: 'leverage — Leverage',
+  max_same_direction: 'max_same_direction — Max same-direction positions',
+  enable_emergency_loss_exit: 'enable_emergency_loss_exit — Emergency loss exit',
+  max_unrealized_loss_pct: 'max_unrealized_loss_pct — Max unrealized loss %',
+  emergency_loss_min_elapsed_sec: 'emergency_loss_min_elapsed_sec — Min time for emergency (sec)',
+  max_seconds_without_exchange_sl: 'max_seconds_without_exchange_sl — Max sec without exchange SL',
 }
 
 const GROUPS = [
   {
-    title: 'کنترل اصلی',
+    title: 'Main control',
     keys: [
       'enable_new_entries',
       'auto_pause_entries_on_btc_regime',
@@ -62,7 +82,7 @@ const GROUPS = [
     ],
   },
   {
-    title: 'ورود ریل',
+    title: 'Real entry',
     keys: [
       'min_confluence', 'min_sl_distance_pct', 'max_sl_distance_pct',
       'min_rr', 'round_trip_friction_pct', 'min_tp_distance_pct',
@@ -73,7 +93,25 @@ const GROUPS = [
     ],
   },
   {
-    title: 'خروج / مدیریت سود',
+    title: 'ADX entry gate (blocks weak TREND_OK)',
+    keys: [
+      'enable_min_adx_entry',
+      'min_adx_1h_for_entry',
+      'min_btc_adx_1h_for_alt',
+      'adx_strong_bypass_btc',
+      'enable_strong_adx_bypass_btc_pause',
+    ],
+  },
+  {
+    title: 'News blackout',
+    keys: [
+      'enable_news_blackout',
+      'news_blackout_minutes_before',
+      'news_blackout_minutes_after',
+    ],
+  },
+  {
+    title: 'Exit / profit management',
     keys: [
       'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'max_hold_seconds',
       'enable_float_profit_exit', 'float_only_if_slots_full', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
@@ -81,7 +119,7 @@ const GROUPS = [
     ],
   },
   {
-    title: 'سرمایه و ریسک',
+    title: 'Capital & risk',
     keys: [
       'daily_loss_limit', 'margin_fraction', 'max_open_positions', 'leverage', 'max_same_direction',
       'enable_emergency_loss_exit', 'max_unrealized_loss_pct', 'emergency_loss_min_elapsed_sec', 'max_seconds_without_exchange_sl',
@@ -111,16 +149,16 @@ export default function SettingsPanel() {
         const detail = data.detail || res.statusText || ''
         if (res.status === 404) {
           throw new Error(
-            'مسیر /settings روی بک‌اند پیدا نشد (۴۰۴). در app.py این دو خط را بگذار و Relaunch کن: from settings_api import router as settings_router — app.include_router(settings_router)'
+            '/settings not found (404). Ensure settings_api router is mounted in app.py'
           )
         }
-        throw new Error(`بارگذاری ناموفق (${res.status}) ${detail}`)
+        throw new Error(`Load failed (${res.status}) ${detail}`)
       }
       setSettings(data.settings || {})
       setDefaults(data.defaults || {})
       setPwOverride(!!data.password_override_active)
     } catch (e) {
-      setErr(e.message || 'خطا')
+      setErr(e.message || 'Error')
     } finally {
       setLoading(false)
     }
@@ -145,11 +183,11 @@ export default function SettingsPanel() {
         body: JSON.stringify({ settings }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.detail || 'ذخیره ناموفق')
+      if (!res.ok) throw new Error(data.detail || 'Save failed')
       setSettings(data.settings || settings)
-      setMsg('ذخیره شد و روی ریل اعمال شد.')
+      setMsg('Saved — applied to real trading immediately.')
     } catch (e) {
-      setErr(e.message || 'خطا در ذخیره')
+      setErr(e.message || 'Save error')
     } finally {
       setSaving(false)
     }
@@ -159,11 +197,11 @@ export default function SettingsPanel() {
     setMsg('')
     setErr('')
     if (pwNew.length < 4) {
-      setErr('رمز جدید حداقل ۴ کاراکتر')
+      setErr('New password min 4 characters')
       return
     }
     if (pwNew !== pwNew2) {
-      setErr('تکرار رمز با رمز جدید یکی نیست')
+      setErr('Password confirmation does not match')
       return
     }
     try {
@@ -173,14 +211,14 @@ export default function SettingsPanel() {
         body: JSON.stringify({ new_password: pwNew, current_password: pwCurrent }),
       })
       const data = await res.json().catch(() => ({}))
-      if (!res.ok) throw new Error(data.detail || 'تغییر رمز ناموفق')
-      setMsg(data.message || 'رمز به‌روز شد')
+      if (!res.ok) throw new Error(data.detail || 'Password change failed')
+      setMsg(data.message || 'Password updated')
       setPwCurrent('')
       setPwNew('')
       setPwNew2('')
       setPwOverride(true)
     } catch (e) {
-      setErr(typeof e.message === 'string' ? e.message : 'خطا')
+      setErr(typeof e.message === 'string' ? e.message : 'Error')
     }
   }
 
@@ -195,10 +233,10 @@ export default function SettingsPanel() {
         <header className="topbar">
           <div className="brand">
             <span className="brand-mark">◈</span>
-            <span className="brand-name">تنظیمات SignalDesk</span>
+            <span className="brand-name">SignalDesk Settings</span>
           </div>
         </header>
-        <main className="main"><p>در حال بارگذاری…</p></main>
+        <main className="main"><p>Loading…</p></main>
       </div>
     )
   }
@@ -208,7 +246,7 @@ export default function SettingsPanel() {
       <header className="topbar">
         <div className="brand">
           <span className="brand-mark">◈</span>
-          <span className="brand-name">تنظیمات</span>
+          <span className="brand-name">Settings</span>
         </div>
         <div className="topbar-status">
           <a
@@ -219,16 +257,19 @@ export default function SettingsPanel() {
               goHome()
             }}
           >
-            بازگشت به صفحه اصلی
+            Back to home
           </a>
         </div>
       </header>
 
-      <main className="main" style={{ maxWidth: 720, margin: '0 auto' }}>
+      <main className="main" style={{ maxWidth: 780, margin: '0 auto' }}>
         <section className="final-section" style={{ marginBottom: 16 }}>
           <p style={{ opacity: 0.85, lineHeight: 1.6 }}>
-            متغیرهای ریل را از اینجا تغییر بده. بعد از ذخیره بلافاصله اعمال می‌شوند
-            (بدون Relaunch). مقادیر افراطی می‌توانند ترید را متوقف یا ریسک را بالا ببرند.
+            Real-trading parameters. After save they apply immediately (no Relaunch).
+            Extreme values can stop entries or increase risk.
+            <br />
+            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25).
+            <b dir="ltr"> chop_adx_threshold</b> (20) is only the legacy chop filter — not the entry gate.
           </p>
           {msg && <p className="error-note" style={{ color: '#2DD4A7' }}>{msg}</p>}
           {err && <p className="error-note">{err}</p>}
@@ -252,7 +293,9 @@ export default function SettingsPanel() {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <span style={{ flex: 1, minWidth: 180 }}>{LABELS[key] || key}</span>
+                    <span style={{ flex: 1, minWidth: 200, fontFamily: 'ui-monospace, monospace', fontSize: 13 }}>
+                      {LABELS[key] || key}
+                    </span>
                     {isBool ? (
                       <select
                         value={val ? '1' : '0'}
@@ -260,8 +303,8 @@ export default function SettingsPanel() {
                         className="admin-pass-input"
                         style={{ width: 140 }}
                       >
-                        <option value="1">روشن</option>
-                        <option value="0">خاموش</option>
+                        <option value="1">ON</option>
+                        <option value="0">OFF</option>
                       </select>
                     ) : (
                       <input
@@ -285,50 +328,50 @@ export default function SettingsPanel() {
 
         <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
           <button className="btn-primary" type="button" onClick={save} disabled={saving}>
-            {saving ? 'در حال ذخیره…' : 'ذخیره تنظیمات ریل'}
+            {saving ? 'Saving…' : 'Save real settings'}
           </button>
           <button
             type="button"
             className="topbar-admin-link"
             onClick={() => setSettings({ ...defaults })}
           >
-            بازگردانی پیش‌فرض‌ها (هنوز ذخیره نشده)
+            Reset to defaults (not saved yet)
           </button>
         </div>
 
         <section className="final-section">
-          <h3 style={{ marginTop: 0 }}>رمز ورود به پلتفرم</h3>
+          <h3 style={{ marginTop: 0 }}>Site password</h3>
           <p style={{ opacity: 0.8, fontSize: 14 }}>
-            رمز ورود سایت را اینجا عوض کن.
+            Change the platform login password.
             {pwOverride
-              ? ' الان override فایل فعال است.'
-              : ' فعلاً از Secret محیطی (SITE_PASSWORD) استفاده می‌شود.'}
-            {' '}روی HuggingFace برای ماندگاری بعد از ریست، Persistent Storage توصیه می‌شود.
+              ? ' File override is active.'
+              : ' Currently using SITE_PASSWORD env secret.'}
+            {' '}On HuggingFace, Persistent Storage is recommended for survival across restarts.
           </p>
           <div style={{ display: 'grid', gap: 10, maxWidth: 360 }}>
             <input
               type="password"
               className="admin-pass-input"
-              placeholder="رمز فعلی (اختیاری اگر می‌دانی)"
+              placeholder="Current password (optional)"
               value={pwCurrent}
               onChange={(e) => setPwCurrent(e.target.value)}
             />
             <input
               type="password"
               className="admin-pass-input"
-              placeholder="رمز جدید"
+              placeholder="New password"
               value={pwNew}
               onChange={(e) => setPwNew(e.target.value)}
             />
             <input
               type="password"
               className="admin-pass-input"
-              placeholder="تکرار رمز جدید"
+              placeholder="Confirm new password"
               value={pwNew2}
               onChange={(e) => setPwNew2(e.target.value)}
             />
             <button className="btn-primary" type="button" onClick={changePassword}>
-              تغییر رمز ورود
+              Change password
             </button>
           </div>
         </section>
