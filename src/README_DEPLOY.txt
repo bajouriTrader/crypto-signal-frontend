@@ -1,11 +1,12 @@
-V.2.10.70
+SignalDesk V.2.10.79 — compact entry gate chips
+==============================================
+Backend: entry_block_summary on /real-trade/status
+  chips[]: {ok, id, t}  + line + can_enter
 
-بک‌اند:
-- news_blackout.py (today_events + title_fa)
-- real_trade.py, runtime_settings.py, version.py
+Frontend: RealTradePanel shows compact ✓/✗ chips
+  (pause / news / slots / recent reject reasons)
+  ADX exception line only when pause is BTC-related (not global SL lock)
 
-فرانت:
-- src/SessionClock.jsx  (فشرده + لیست اخبار فارسی)
-- src/index.css         (کلاس‌های ff-row / ff-news)
-
-کادر سشن کوچک‌تر شد؛ کنارش «اخبار امروز» با ساعت تهران و عنوان فارسی.
+Deploy:
+  HF: real_trade.py + version.py
+  GitHub Pages: src/RealTradePanel.jsx (replace)

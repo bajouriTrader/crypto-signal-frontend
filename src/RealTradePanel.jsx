@@ -596,60 +596,73 @@ export default function RealTradePanel() {
                 </div>
               ) : null}
 
-              {status.auto_entry_pause ? (
+              {/* V.2.10.79 — چیپ‌های فشرده گیت ورود */}
+              {status.real_trading_enabled ? (
                 <div
                   style={{
                     marginBottom: 12,
-                    padding: '10px 12px',
+                    padding: '8px 10px',
                     borderRadius: 10,
-                    background: '#2a1f0a',
-                    border: '1px solid #6b4e14',
-                    color: '#F5C542',
-                    fontSize: 12,
-                    lineHeight: 1.55,
+                    background: status.auto_entry_pause ? '#2a1f0a' : '#0f221c',
+                    border: `1px solid ${status.auto_entry_pause ? '#6b4e14' : '#1e4a3a'}`,
                     textAlign: 'right',
                   }}
                 >
-                  <strong>⏸ ورود جدید متوقف است</strong>
-                  <div style={{ marginTop: 4, color: '#d4b86a', fontSize: 11 }}>
-                    {status.auto_entry_pause_reason || 'دلیل نامشخص'}
-                  </div>
-                  <div style={{ marginTop: 6, color: '#2DD4A7', fontSize: 12, fontWeight: 600 }}>
-                    {openDespitePause.length > 0 ? (
-                      <>
-                        ▶ پوزیشن‌گیری باز برای:{' '}
-                        {openDespitePause.map((x, i) => (
-                          <span key={x.symbol}>
-                            {i > 0 ? ' · ' : ''}
-                            {x.symbol}
-                            <span style={{ color: '#7dceb0', fontWeight: 500 }}> (ADX {x.adx})</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: 6,
+                      justifyContent: 'flex-end',
+                      alignItems: 'center',
+                      marginBottom: 6,
+                    }}
+                  >
+                    {(status.entry_block_summary?.chips || []).length > 0
+                      ? status.entry_block_summary.chips.map((c) => (
+                          <span
+                            key={c.id}
+                            style={{
+                              fontSize: 10,
+                              fontWeight: 600,
+                              padding: '2px 8px',
+                              borderRadius: 999,
+                              background: c.ok ? '#14352c' : '#3a2210',
+                              color: c.ok ? '#2DD4A7' : '#F5C542',
+                              border: `1px solid ${c.ok ? '#1e5c48' : '#6b4e14'}`,
+                              direction: 'ltr',
+                            }}
+                          >
+                            {c.ok ? '✓' : '✗'} {c.t}
                           </span>
-                        ))}
-                      </>
-                    ) : (
-                      <span style={{ color: '#8a9a8a', fontWeight: 500 }}>
-                        ▶ فعلاً هیچ نمادی با ADX≥{status?.entry_filters?.adx_strong_bypass_btc ?? 30} برای استثنا نیست
-                      </span>
-                    )}
+                        ))
+                      : (
+                          <>
+                            <span style={{ fontSize: 10, color: status.auto_entry_pause ? '#F5C542' : '#2DD4A7' }}>
+                              {status.auto_entry_pause ? '✗ pause' : '✓ بدون‌pause'}
+                            </span>
+                            <span style={{ fontSize: 10, color: status.news_blackout?.active ? '#F5C542' : '#2DD4A7' }}>
+                              {status.news_blackout?.active ? '✗ خبر' : '✓ خبرOK'}
+                            </span>
+                          </>
+                        )}
                   </div>
-                  <div style={{ marginTop: 4, color: '#8a7a55', fontSize: 10 }}>
-                    پوزیشن‌های باز همچنان مدیریت می‌شوند · enable_new_entries={String(status.enable_new_entries)}
+                  <div style={{ fontSize: 11, color: status.auto_entry_pause ? '#d4b86a' : '#8ab4a4', lineHeight: 1.4 }}>
+                    {status.entry_block_summary?.line
+                      || status.auto_entry_pause_reason
+                      || (status.entry_block_summary?.can_enter
+                        ? `آزاد · منتظر score≥${status.min_confluence ?? 92}`
+                        : '—')}
                   </div>
-                </div>
-              ) : status.real_trading_enabled ? (
-                <div
-                  style={{
-                    marginBottom: 12,
-                    padding: '8px 12px',
-                    borderRadius: 10,
-                    background: '#0f221c',
-                    border: '1px solid #1e4a3a',
-                    color: '#2DD4A7',
-                    fontSize: 11,
-                    textAlign: 'right',
-                  }}
-                >
-                  ▶ ورود خودکار فعال است
+                  {/* استثنای ADX فقط وقتی pause مربوط به BTC است نه قفل SL */}
+                  {status.auto_entry_pause
+                    && /BTC|CHOP|WEAK|رژیم/i.test(String(status.auto_entry_pause_reason || ''))
+                    && openDespitePause.length > 0 && (
+                    <div style={{ marginTop: 4, color: '#2DD4A7', fontSize: 11 }}>
+                      استثنا ADX≥{status?.entry_filters?.adx_strong_bypass_btc ?? 30}:{' '}
+                      {openDespitePause.map((x) => x.symbol).join(' · ')}
+                    </div>
+                  )}
                 </div>
               ) : null}
 
