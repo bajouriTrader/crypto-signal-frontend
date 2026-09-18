@@ -516,9 +516,21 @@ function WatchTickerRow({ signal }) {
           {signal.direction === 'long' ? 'لانگ' : 'شورت'}
         </span>
       )}
-      <span className={`ticker-score ${scoreLevel(signal.confluence_score)}`} dir="ltr">
-        {signal.confluence_score}%
+      <span className={`ticker-score ${scoreLevel(signal.confluence_score)}`} dir="ltr" title="Score — هم‌خوانی نه احتمال برد">
+        {signal.confluence_score}
+        <span style={{ fontSize: '0.7em', opacity: 0.75, marginLeft: 2 }}>sc</span>
       </span>
+      {signal.tradeability != null && (
+        <span
+          className={`ticker-score ${scoreLevel(signal.tradeability)}`}
+          dir="ltr"
+          title={(signal.tradeability_reasons || []).join(' · ') || 'Tradeability — فقط مشاهده'}
+          style={{ marginLeft: 4, opacity: 0.95 }}
+        >
+          {Math.round(Number(signal.tradeability))}
+          <span style={{ fontSize: '0.7em', opacity: 0.75, marginLeft: 2 }}>tr</span>
+        </span>
+      )}
       {signal.open_trade && <span className="ticker-live-badge">در تست زنده</span>}
       {hasSignal && !signal.signal_available && (
         <span className="ticker-pending">در انتظار تریگر</span>
@@ -580,9 +592,18 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
             {rowData.direction === 'long' ? 'لانگ' : 'شورت'}
           </span>
         )}
-        <span className={`watchlist-score-badge ${scoreLevel(rowData.confluence_score)}`}>
-          {rowData.confluence_score}%
+        <span className={`watchlist-score-badge ${scoreLevel(rowData.confluence_score)}`} title="Score — نه احتمال برد">
+          Score {rowData.confluence_score}
         </span>
+        {rowData.tradeability != null && (
+          <span
+            className={`watchlist-score-badge ${scoreLevel(rowData.tradeability)}`}
+            title={(rowData.tradeability_reasons || []).join(' · ') || 'Tradeability observation'}
+            style={{ marginInlineStart: 6 }}
+          >
+            Trade {Math.round(Number(rowData.tradeability))}
+          </span>
+        )}
         {hasSignal && !isTriggered && (
           <span className="watchlist-pending-badge">در انتظار تریگر ۱۵m/۵m</span>
         )}
@@ -782,7 +803,10 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
           </div>
         </div>
         <span className="watchlist-sub">
-          همه‌ی {filteredSignals.length} ارز زیر نظر — بر اساس امتیاز مرتب‌شده
+          همه‌ی {filteredSignals.length} ارز تحت نظر — بر اساس Score مرتب‌شده
+          <div style={{ fontSize: 11, color: '#8899aa', marginTop: 6, lineHeight: 1.45 }}>
+            <b>Score</b> = هم‌خوانی لحظه‌ای (نه احتمال برد) · <b>Trade</b> = آمادگی تقریبی ریل (فقط مشاهده، روی ورود اثر ندارد)
+          </div>
           {isPartial && ' — لیست در حال تکمیل شدنه'}
         </span>
       </div>

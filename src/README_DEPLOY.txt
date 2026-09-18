@@ -1,12 +1,21 @@
-SignalDesk V.2.10.79 — compact entry gate chips
-==============================================
-Backend: entry_block_summary on /real-trade/status
-  chips[]: {ok, id, t}  + line + can_enter
+SignalDesk V.2.10.80 — Watchlist Observer (observation-only)
+============================================================
+Backend deploy (HF Space):
+  - version.py
+  - watchlist.py
+  - watchlist_observer.py  (NEW)
 
-Frontend: RealTradePanel shows compact ✓/✗ chips
-  (pause / news / slots / recent reject reasons)
-  ADX exception line only when pause is BTC-related (not global SL lock)
+Frontend (GitHub Pages):
+  - src/AutoSignalList.jsx
 
-Deploy:
-  HF: real_trade.py + version.py
-  GitHub Pages: src/RealTradePanel.jsx (replace)
+What changes:
+  - Each /watchlist-signals row gets:
+      tradeability, tradeability_reasons, observer{}
+  - UI shows Score (not "96%") + Trade
+  - Explicit: Score ≠ win probability
+  - NO entry gate / threshold changes
+  - Snapshot ring in memory for future calibration
+
+Does NOT change:
+  - real_trade open filters
+  - min_confluence / min_rr / anti-chase
