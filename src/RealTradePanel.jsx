@@ -380,6 +380,7 @@ export default function RealTradePanel() {
   const [err, setErr] = useState(null)
   const [flash, setFlash] = useState(null)
   const [closingSym, setClosingSym] = useState(null)
+  const [closedVisible, setClosedVisible] = useState(10)
   const timerRef = useRef(null)
   const flashTimerRef = useRef(null)
 
@@ -391,6 +392,7 @@ export default function RealTradePanel() {
       if (!res.ok) throw new Error('خطا در دریافت وضعیت')
       const data = await res.json()
       setStatus(data)
+      setClosedVisible(10)
       if (!silent) {
         setFlash('ok')
         if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
