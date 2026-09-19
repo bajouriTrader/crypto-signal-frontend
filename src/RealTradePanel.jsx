@@ -694,33 +694,81 @@ export default function RealTradePanel() {
 
               {recent.length > 0 && (
                 <div style={{ marginBottom: 12 }}>
-                  <div style={{ fontSize: 12, color: '#8899aa', marginBottom: 6 }}>معاملات اخیر بسته‌شده</div>
-                  {recent.slice(0, 5).map((r, i) => {
-                    const pnl = Number(r.approx_pnl || 0)
-                    return (
-                      <div
-                        key={i}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          padding: '7px 4px',
-                          borderBottom: '1px solid #1a2836',
-                          fontSize: 12,
-                          gap: 8,
-                        }}
-                      >
-                        <span>
-                          <strong>{r.symbol}</strong>{' '}
-                          <span style={{ color: r.direction === 'long' ? '#2DD4A7' : '#FF5C72' }}>
-                            {r.direction === 'long' ? 'L' : 'S'}
-                          </span>
-                        </span>
-                        <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72', fontVariantNumeric: 'tabular-nums' }}>
-                          {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} $
-                        </strong>
+                  <div style={{ fontSize: 12, color: '#8899aa', marginBottom: 6, display: 'flex', justifyContent: 'space-between' }}>
+                    <span>۱۰ بستن اخیر (تاریخ · ساعت · نسخه)</span>
+                    <span style={{ color: '#556', fontSize: 11 }}>پایین بکش → قدیمی‌تر</span>
+                  </div>
+                  <div
+                    onScroll={(e) => {
+                      const el = e.currentTarget
+                      if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) {
+                        setClosedVisible((n) => Math.min(recent.length, n + 10))
+                      }
+                    }}
+                    style={{
+                      maxHeight: 280,
+                      overflowY: 'auto',
+                      border: '1px solid #1a2836',
+                      borderRadius: 10,
+                      padding: '4px 6px',
+                      background: '#0d1520',
+                    }}
+                  >
+                    {recent.slice(0, closedVisible).map((r, i) => {
+                      const pnl = Number(r.approx_pnl || 0)
+                      const ts = Number(r.closed_at || 0)
+                      let when = '—'
+                      try {
+                        if (ts > 0) {
+                          const d = new Date((ts > 1e12 ? ts : ts * 1000))
+                          when = d.toLocaleString('fa-IR', {
+                            timeZone: 'Asia/Tehran',
+                            year: 'numeric', month: '2-digit', day: '2-digit',
+                            hour: '2-digit', minute: '2-digit',
+                          })
+                        }
+                      } catch (_) {}
+                      const ver = r.app_version_close || r.app_version || r.close_app_version || '—'
+                      return (
+                        <div
+                          key={String(r.symbol) + i + String(r.exit_price || '') + String(ts)}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
+                            padding: '8px 4px',
+                            borderBottom: '1px solid #1a2836',
+                            fontSize: 12,
+                            gap: 8,
+                          }}
+                        >
+                          <div style={{ minWidth: 0 }}>
+                            <div>
+                              <strong>{String(r.symbol || '').replace('-SWAP-USDT','')}</strong>{' '}
+                              <span style={{ color: r.direction === 'long' ? '#2DD4A7' : '#FF5C72' }}>
+                                {r.direction === 'long' ? 'L' : 'S'}
+                              </span>
+                              <span style={{ color: '#667', marginRight: 6, fontSize: 11 }} dir="ltr">
+                                {r.exit_reason ? ` · ${r.exit_reason}` : ''}
+                              </span>
+                            </div>
+                            <div style={{ color: '#778899', fontSize: 11, marginTop: 2 }} dir="ltr">
+                              {when}
+                              <span style={{ color: '#5a7a9a', marginRight: 8 }}> · {ver}</span>
+                            </div>
+                          </div>
+                          <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                            {pnl >= 0 ? '+' : ''}{pnl.toFixed(4)} $
+                          </strong>
+                        </div>
+                      )
+                    })}
+                    {closedVisible < recent.length && (
+                      <div style={{ textAlign: 'center', color: '#556', fontSize: 11, padding: 8 }}>
+                        … {recent.length - closedVisible} مورد قدیمی‌تر — اسکرول کنید
                       </div>
-                    )
-                  })}
+                    )}
+                  </div>
                 </div>
               )}
 
