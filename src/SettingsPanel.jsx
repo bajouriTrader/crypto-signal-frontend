@@ -31,12 +31,58 @@ const LABELS = {
   enable_chop_filter: 'enable_chop_filter — Chop market filter (legacy ADX)',
   chop_adx_threshold: 'chop_adx_threshold — Chop ADX threshold (NOT entry gate)',
 
-  // ADX entry gate (was missing from UI — this is what blocks SOL at 22.9)
+  // ADX entry gate
   enable_min_adx_entry: 'enable_min_adx_entry — Enable min ADX entry gate',
   min_adx_1h_for_entry: 'min_adx_1h_for_entry — Min symbol ADX 1h to open',
   min_btc_adx_1h_for_alt: 'min_btc_adx_1h_for_alt — Min BTC ADX when opening alts',
   adx_strong_bypass_btc: 'adx_strong_bypass_btc — Symbol ADX ≥ this bypasses BTC pause',
   enable_strong_adx_bypass_btc_pause: 'enable_strong_adx_bypass_btc_pause — Allow strong-ADX BTC bypass',
+  enable_adx_bypass_btc_chop: 'enable_adx_bypass_btc_chop — Allow ADX bypass when BTC=CHOP (keep OFF in .92+)',
+
+  // Anti-noise / trend quality (.90–.92)
+  enable_ci_noise_filter: 'enable_ci_noise_filter — Reject high CI (choppy) setups',
+  ci_noise_max: 'ci_noise_max — Max CI before noise reject',
+  enable_er_noise_filter: 'enable_er_noise_filter — Reject low-efficiency (noisy) ER',
+  er_noise_max: 'er_noise_max — Max ER labeled as noise (below = noisy)',
+  enable_alt_er_strict: 'enable_alt_er_strict — Stricter min ER for alts',
+  alt_er_min: 'alt_er_min — Min ER for alt entry when strict',
+  enable_trend_quality_gate: 'enable_trend_quality_gate — Trend quality pre-entry gate',
+  enable_trend_transition_guard: 'enable_trend_transition_guard — Block entry near trend transition',
+  enable_candle_noise_filter: 'enable_candle_noise_filter — Wick/range candle noise filter',
+  enable_entry_candle_confirm: 'enable_entry_candle_confirm — Require closed candle confirmation',
+  enable_real_m5_closed_trigger: 'enable_real_m5_closed_trigger — Reject m15-only triggers (need closed 5m)',
+  anti_noise_fail_closed: 'anti_noise_fail_closed — ON=reject on kline parse error; OFF=fail-open on parse only',
+
+  // Live WR / probation
+  live_wr_block_min_n: 'live_wr_block_min_n — Min live trades before WR block',
+  live_wr_block_pct: 'live_wr_block_pct — Block symbol if live WR below this %',
+  live_wr_probation_min_n: 'live_wr_probation_min_n — Min trades for probation sizing',
+  live_wr_probation_pct: 'live_wr_probation_pct — WR below this → half size',
+  live_wr_probation_size_mult: 'live_wr_probation_size_mult — Size multiplier on probation',
+
+  // Post-profit hysteresis
+  enable_post_profit_hysteresis: 'enable_post_profit_hysteresis — Cooldown after soft profit exit',
+  post_profit_cooldown_sec: 'post_profit_cooldown_sec — Cooldown after profit exit (sec)',
+  post_profit_hyst_window_sec: 'post_profit_hyst_window_sec — Hysteresis lookback window (sec)',
+  post_profit_hyst_min_er_ratio: 'post_profit_hyst_min_er_ratio — Min ER ratio vs prior after profit',
+  post_profit_hyst_min_adx_ratio: 'post_profit_hyst_min_adx_ratio — Min ADX ratio vs prior after profit',
+
+  // Regime align / soft exit / stale
+  enable_regime_align: 'enable_regime_align — Require regime alignment',
+  regime_require_btc_align: 'regime_require_btc_align — Require BTC direction align',
+  regime_require_symbol_htf: 'regime_require_symbol_htf — Require symbol HTF align',
+  regime_min_adx: 'regime_min_adx — Min ADX for regime OK',
+  enable_regime_soft_exit: 'enable_regime_soft_exit — Soft exit when regime turns adverse',
+  regime_exit_be_pct: 'regime_exit_be_pct — BE-style soft exit profit %',
+  regime_exit_flat_min_elapsed: 'regime_exit_flat_min_elapsed — Min hold before flat soft exit (sec)',
+  regime_exit_flat_min_pnl_pct: 'regime_exit_flat_min_pnl_pct — Min PnL % for flat soft exit',
+  regime_exit_lock_progress: 'regime_exit_lock_progress — Progress-to-TP for regime lock exit',
+  regime_exit_lock_min_profit: 'regime_exit_lock_min_profit — Min profit for regime lock exit',
+  enable_stale_session_exit: 'enable_stale_session_exit — Close stale positions near session edge',
+  stale_profit_min_pct: 'stale_profit_min_pct — Min profit % for stale profit exit',
+  stale_neutral_min_pct: 'stale_neutral_min_pct — Band for stale neutral exit',
+  stale_neutral_had_loss_pct: 'stale_neutral_had_loss_pct — Had-loss threshold for neutral stale',
+  min_net_close_pnl_pct: 'min_net_close_pnl_pct — Min net PnL % for soft closes (fee-aware)',
 
   // News blackout
   enable_news_blackout: 'enable_news_blackout — Block entries around high-impact USD news',
@@ -100,6 +146,45 @@ const GROUPS = [
       'min_btc_adx_1h_for_alt',
       'adx_strong_bypass_btc',
       'enable_strong_adx_bypass_btc_pause',
+      'enable_adx_bypass_btc_chop',
+    ],
+  },
+  {
+    title: 'Anti-noise / trend quality (.90–.92)',
+    keys: [
+      'enable_ci_noise_filter', 'ci_noise_max',
+      'enable_er_noise_filter', 'er_noise_max',
+      'enable_alt_er_strict', 'alt_er_min',
+      'enable_trend_quality_gate', 'enable_trend_transition_guard',
+      'enable_candle_noise_filter', 'enable_entry_candle_confirm',
+      'enable_real_m5_closed_trigger',
+      'anti_noise_fail_closed',
+    ],
+  },
+  {
+    title: 'Live WR / probation',
+    keys: [
+      'live_wr_block_min_n', 'live_wr_block_pct',
+      'live_wr_probation_min_n', 'live_wr_probation_pct', 'live_wr_probation_size_mult',
+    ],
+  },
+  {
+    title: 'Post-profit hysteresis',
+    keys: [
+      'enable_post_profit_hysteresis', 'post_profit_cooldown_sec',
+      'post_profit_hyst_window_sec', 'post_profit_hyst_min_er_ratio', 'post_profit_hyst_min_adx_ratio',
+    ],
+  },
+  {
+    title: 'Regime align / soft exit / stale',
+    keys: [
+      'enable_regime_align', 'regime_require_btc_align', 'regime_require_symbol_htf', 'regime_min_adx',
+      'enable_regime_soft_exit',
+      'regime_exit_be_pct', 'regime_exit_flat_min_elapsed', 'regime_exit_flat_min_pnl_pct',
+      'regime_exit_lock_progress', 'regime_exit_lock_min_profit',
+      'enable_stale_session_exit',
+      'stale_profit_min_pct', 'stale_neutral_min_pct', 'stale_neutral_had_loss_pct',
+      'min_net_close_pnl_pct',
     ],
   },
   {
@@ -126,6 +211,7 @@ const GROUPS = [
     ],
   },
 ]
+
 
 export default function SettingsPanel() {
   const [settings, setSettings] = useState({})
@@ -268,8 +354,7 @@ export default function SettingsPanel() {
             Real-trading parameters. After save they apply immediately (no Relaunch).
             Extreme values can stop entries or increase risk.
             <br />
-            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25).
-            <b dir="ltr"> chop_adx_threshold</b> (20) is only the legacy chop filter — not the entry gate.
+            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25). <b dir="ltr">chop_adx_threshold</b> is legacy only. Anti-noise block includes <b dir="ltr">anti_noise_fail_closed</b> and <b dir="ltr">enable_real_m5_closed_trigger</b>.
           </p>
           {msg && <p className="error-note" style={{ color: '#2DD4A7' }}>{msg}</p>}
           {err && <p className="error-note">{err}</p>}
