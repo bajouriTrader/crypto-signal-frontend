@@ -22,6 +22,8 @@ const LABELS = {
   symbol_cooldown_sec: 'symbol_cooldown_sec — Cooldown after reject (sec)',
   post_close_cooldown_sec: 'post_close_cooldown_sec — Cooldown after close (sec)',
   post_sl_cooldown_sec: 'post_sl_cooldown_sec — Cooldown after SL (sec)',
+  post_negative_cooldown_sec: 'post_negative_cooldown_sec — Cooldown after negative close (sec)',
+  negative_pnl_threshold_usdt: 'negative_pnl_threshold_usdt — PnL ≤ this = negative close (USDT)',
   symbol_sl_lock_count: 'symbol_sl_lock_count — SL count to lock symbol',
   symbol_sl_lock_lookback_sec: 'symbol_sl_lock_lookback_sec — Symbol lock lookback (sec)',
   symbol_sl_lock_sec: 'symbol_sl_lock_sec — Symbol lock duration (sec)',
@@ -73,6 +75,11 @@ const LABELS = {
   regime_require_symbol_htf: 'regime_require_symbol_htf — Require symbol HTF align',
   regime_min_adx: 'regime_min_adx — Min ADX for regime OK',
   enable_regime_soft_exit: 'enable_regime_soft_exit — Soft exit when regime turns adverse',
+  enable_regime_adverse_loss_exit: 'enable_regime_adverse_loss_exit — Exit losers when regime turns adverse',
+  regime_adverse_loss_min_elapsed_sec: 'regime_adverse_loss_min_elapsed_sec — Min hold before adverse exit (sec)',
+  regime_adverse_loss_pnl_pct: 'regime_adverse_loss_pnl_pct — Max adverse PnL % to allow exit',
+  regime_adverse_loss_min_conf: 'regime_adverse_loss_min_conf — Min regime conf for adverse exit',
+  regime_adverse_btc_hostile: 'regime_adverse_btc_hostile — Treat hostile BTC regime as adverse',
   regime_exit_be_pct: 'regime_exit_be_pct — BE-style soft exit profit %',
   regime_exit_flat_min_elapsed: 'regime_exit_flat_min_elapsed — Min hold before flat soft exit (sec)',
   regime_exit_flat_min_pnl_pct: 'regime_exit_flat_min_pnl_pct — Min PnL % for flat soft exit',
@@ -82,6 +89,9 @@ const LABELS = {
   stale_profit_min_pct: 'stale_profit_min_pct — Min profit % for stale profit exit',
   stale_neutral_min_pct: 'stale_neutral_min_pct — Band for stale neutral exit',
   stale_neutral_had_loss_pct: 'stale_neutral_had_loss_pct — Had-loss threshold for neutral stale',
+  stale_flat_min_pct: 'stale_flat_min_pct — Flat band min % for stale flat exit',
+  stale_flat_max_loss_usdt: 'stale_flat_max_loss_usdt — Max |loss| USDT for stale flat exit',
+  stale_flat_exit_fee_est: 'stale_flat_exit_fee_est — Fee estimate for stale flat (USDT)',
   min_net_close_pnl_pct: 'min_net_close_pnl_pct — Min net PnL % for soft closes (fee-aware)',
 
   // News blackout
@@ -92,7 +102,8 @@ const LABELS = {
   // Exit / profit
   profit_lock_trigger: 'profit_lock_trigger — Profit lock (progress to TP)',
   min_profit_pct: 'min_profit_pct — Min profit % to lock',
-  breakeven_trigger_pct: 'breakeven_trigger_pct — Exchange BE trigger %',
+  breakeven_trigger_pct: 'breakeven_trigger_pct — Exchange BE price trigger % (not R)',
+  breakeven_min_r: 'breakeven_min_r — Min R multiple before BE (V.2.10.94)',
   max_hold_seconds: 'max_hold_seconds — Max hold (sec)',
   float_min_r: 'float_min_r — Min float profit in R',
   float_min_profit_usdt: 'float_min_profit_usdt — Min float profit USDT',
@@ -115,6 +126,9 @@ const LABELS = {
   max_unrealized_loss_pct: 'max_unrealized_loss_pct — Max unrealized loss %',
   emergency_loss_min_elapsed_sec: 'emergency_loss_min_elapsed_sec — Min time for emergency (sec)',
   max_seconds_without_exchange_sl: 'max_seconds_without_exchange_sl — Max sec without exchange SL',
+  global_sl_limit: 'global_sl_limit — SL count in window → global lock',
+  global_sl_lookback_sec: 'global_sl_lookback_sec — Global SL lookback window (sec)',
+  global_sl_lock_sec: 'global_sl_lock_sec — Global lock duration after cluster SL (sec)',
 }
 
 const GROUPS = [
@@ -133,6 +147,7 @@ const GROUPS = [
       'min_confluence', 'min_sl_distance_pct', 'max_sl_distance_pct',
       'min_rr', 'round_trip_friction_pct', 'min_tp_distance_pct',
       'real_min_symbol_wr', 'symbol_cooldown_sec', 'post_close_cooldown_sec', 'post_sl_cooldown_sec',
+      'post_negative_cooldown_sec', 'negative_pnl_threshold_usdt',
       'symbol_sl_lock_count', 'symbol_sl_lock_lookback_sec', 'symbol_sl_lock_sec',
       'enable_btc_chop_gate', 'btc_chop_block_alts', 'btc_weak_min_conf',
       'enable_chop_filter', 'chop_adx_threshold',
@@ -180,10 +195,13 @@ const GROUPS = [
     keys: [
       'enable_regime_align', 'regime_require_btc_align', 'regime_require_symbol_htf', 'regime_min_adx',
       'enable_regime_soft_exit',
+      'enable_regime_adverse_loss_exit', 'regime_adverse_loss_min_elapsed_sec',
+      'regime_adverse_loss_pnl_pct', 'regime_adverse_loss_min_conf', 'regime_adverse_btc_hostile',
       'regime_exit_be_pct', 'regime_exit_flat_min_elapsed', 'regime_exit_flat_min_pnl_pct',
       'regime_exit_lock_progress', 'regime_exit_lock_min_profit',
       'enable_stale_session_exit',
       'stale_profit_min_pct', 'stale_neutral_min_pct', 'stale_neutral_had_loss_pct',
+      'stale_flat_min_pct', 'stale_flat_max_loss_usdt', 'stale_flat_exit_fee_est',
       'min_net_close_pnl_pct',
     ],
   },
@@ -198,7 +216,7 @@ const GROUPS = [
   {
     title: 'Exit / profit management',
     keys: [
-      'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'max_hold_seconds',
+      'profit_lock_trigger', 'min_profit_pct', 'breakeven_trigger_pct', 'breakeven_min_r', 'max_hold_seconds',
       'enable_float_profit_exit', 'float_only_if_slots_full', 'float_min_r', 'float_min_profit_usdt', 'float_min_profit_pct', 'float_min_elapsed_sec',
       'enable_regime_tighten_sl', 'regime_tighten_min_elapsed_sec', 'regime_tighten_buffer_pct', 'regime_tighten_only_if_loss',
     ],
@@ -208,6 +226,7 @@ const GROUPS = [
     keys: [
       'daily_loss_limit', 'margin_fraction', 'max_open_positions', 'leverage', 'max_same_direction',
       'enable_emergency_loss_exit', 'max_unrealized_loss_pct', 'emergency_loss_min_elapsed_sec', 'max_seconds_without_exchange_sl',
+      'global_sl_limit', 'global_sl_lookback_sec', 'global_sl_lock_sec',
     ],
   },
 ]
@@ -354,7 +373,7 @@ export default function SettingsPanel() {
             Real-trading parameters. After save they apply immediately (no Relaunch).
             Extreme values can stop entries or increase risk.
             <br />
-            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25). <b dir="ltr">chop_adx_threshold</b> is legacy only. Anti-noise block includes <b dir="ltr">anti_noise_fail_closed</b> and <b dir="ltr">enable_real_m5_closed_trigger</b>.
+            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25). <b dir="ltr">chop_adx_threshold</b> is legacy only. V.2.10.94.1 adds <b dir="ltr">breakeven_min_r</b>, post_negative, global_sl, regime_adverse, stale_flat. Anti-noise block includes <b dir="ltr">anti_noise_fail_closed</b> and <b dir="ltr">enable_real_m5_closed_trigger</b>.
           </p>
           {msg && <p className="error-note" style={{ color: '#2DD4A7' }}>{msg}</p>}
           {err && <p className="error-note">{err}</p>}
