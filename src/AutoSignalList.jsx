@@ -14,6 +14,7 @@ function scoreLevel(score) {
 
 function modeLabel(mode) {
   if (mode === 'relaxed') return 'ساده‌گیر'
+  if (mode === 'range') return 'رنج'
   if (mode === 'manual') return 'دستی'
   return 'سخت‌گیر'
 }
@@ -595,6 +596,11 @@ function SignalRow({ signal, index, onFullAnalyze, isAnalyzing, mode }) {
         <span className={`watchlist-score-badge ${scoreLevel(rowData.confluence_score)}`} title="Score — نه احتمال برد">
           Score {rowData.confluence_score}
         </span>
+        {rowData.strategy_id && (
+          <span className="watchlist-pending-badge" dir="ltr" title={rowData.reason || ''}>
+            {rowData.strategy_id}
+          </span>
+        )}
         {rowData.tradeability != null && (
           <span
             className={`watchlist-score-badge ${scoreLevel(rowData.tradeability)}`}
@@ -668,25 +674,27 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
   const [status, setStatus] = useState('loading')
   const [isPartial, setIsPartial] = useState(false)
   const [filter, setFilter] = useState('all')
-  const [mode, setMode] = useState('relaxed') // 'strict' | 'relaxed'
+  const [mode, setMode] = useState('relaxed') // 'strict' | 'relaxed' | 'range'
   const [globalRemaining, startGlobalCooldown] = useCountdown(GLOBAL_REFRESH_COOLDOWN)
   const [globalRefreshing, setGlobalRefreshing] = useState(false)
 
-  // تعداد سیگنال‌های *همین الان فعال و قابل‌معامله* برای هر دو حالت —
-  // هر دو رو نگه می‌داریم تا هر دو برچسب (سخت‌گیر/ساده‌گیر) همیشه عدد
-  // نشون بدن، نه فقط حالتی که همون لحظه انتخاب شده
-  const [counts, setCounts] = useState({ strict: null, relaxed: null })
+  const [counts, setCounts] = useState({ strict: null, relaxed: null, range: null })
 
   const loadCounts = async () => {
     try {
-      const [strictRes, relaxedRes] = await Promise.all([
+      const [strictRes, relaxedRes, rangeRes] = await Promise.all([
         authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=strict`),
         authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=relaxed`),
+        authFetch(`${API_BASE_URL}/watchlist-signals?limit=20&mode=range`),
       ])
-      const [strictData, relaxedData] = await Promise.all([strictRes.json(), relaxedRes.json()])
+      const [strictData, relaxedData, rangeData] = await Promise.all([
+        strictRes.json(), relaxedRes.json(), rangeRes.json(),
+      ])
+      const active = (data) => (data.signals || []).filter((s) => s.signal_available).length
       setCounts({
-        strict: (strictData.signals || []).filter((s) => s.signal_available).length,
-        relaxed: (relaxedData.signals || []).filter((s) => s.signal_available).length,
+        strict: active(strictData),
+        relaxed: active(relaxedData),
+        range: active(rangeData),
       })
     } catch {
       // بی‌صدا نادیده می‌گیریم، دفعه‌ی بعد دوباره تلاش می‌شه
@@ -774,6 +782,18 @@ export default function AutoSignalList({ onFullAnalyze, isAnalyzing }) {
           ساده‌گیر (سیگنال بیشتر، دقت پایین‌تر)
           {counts.relaxed !== null && (
             <span dir="ltr"> ({counts.relaxed} فعال)</span>
+          )}
+        </label>
+        <label className={`mode-option ${mode === 'range' ? 'mode-option-active' : ''}`}>
+          <input
+            type="radio"
+            name="signal-mode"
+            checked={mode === 'range'}
+            onChange={() => setMode('range')}
+          />
+          رنج (لبه ۱۵m + برگشت ۵m)
+          {counts.range !== null && (
+            <span dir="ltr"> ({counts.range} فعال)</span>
           )}
         </label>
       </div>

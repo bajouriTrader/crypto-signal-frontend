@@ -42,16 +42,26 @@ const LABELS = {
   enable_adx_bypass_btc_chop: 'enable_adx_bypass_btc_chop — Allow ADX bypass when BTC=CHOP (keep OFF in .92+)',
 
   // V.2.10.97 — Range scalp (CHOP/WEAK multi-strategy path)
-  enable_range_scalp: 'enable_range_scalp — Allow range_scalp path in BTC WEAK/CHOP',
-  range_min_confluence: 'range_min_confluence — Min score for range_scalp entries',
-  range_max_sl_distance_pct: 'range_max_sl_distance_pct — Max SL % on range path (tighter)',
-  range_min_rr: 'range_min_rr — Min net R:R for range_scalp',
-  range_size_mult: 'range_size_mult — Margin size multiplier on range (e.g. 0.4)',
-  range_max_open_positions: 'range_max_open_positions — Max concurrent range_scalp positions',
+  enable_range_scalp: 'enable_range_scalp — Independent range_scalp engine in CHOP/WEAK',
+  range_min_confluence: 'range_min_confluence — Min score for range_scalp (not the trend score)',
+  range_max_sl_distance_pct: 'range_max_sl_distance_pct — Max structural SL % (not moved to fit)',
+  range_min_rr: 'range_min_rr — Min net R:R for range (0.80; 1.05 blocks midpoint targets)',
+  range_min_tp_pct: 'range_min_tp_pct — Min TP % to range midpoint',
+  range_size_mult: 'range_size_mult — Size multiplier before the loss-budget bump',
+  range_max_open_positions: 'range_max_open_positions — Range slots only (trend positions do not count)',
   range_ci_hard_max: 'range_ci_hard_max — CI ≥ this = unstructured noise (no entry)',
-  range_er_floor: 'range_er_floor — Min ER on range path (below = reject)',
-  range_allow_btc_weak: 'range_allow_btc_weak — Permit range path when BTC=WEAK',
-  range_allow_btc_chop: 'range_allow_btc_chop — Permit range path when BTC=CHOP',
+  range_er_floor: 'range_er_floor — Min ER on range path',
+  range_allow_btc_weak: 'range_allow_btc_weak — Permit range when BTC=WEAK',
+  range_allow_btc_chop: 'range_allow_btc_chop — Permit range when BTC=CHOP',
+  range_signal_only: 'range_signal_only — ON = show range signals, do not send orders',
+  range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
+  range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
+  range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  enable_weak_trend: 'enable_weak_trend — Reduced-size trend when the symbol is healthy and BTC is WEAK/CHOP',
+  weak_trend_size_mult: 'weak_trend_size_mult — Size multiplier for weak_trend',
+  weak_trend_min_confluence: 'weak_trend_min_confluence — Min score for weak_trend',
+  weak_trend_min_adx: 'weak_trend_min_adx — Min symbol ADX for weak_trend (BTC ADX floor is skipped)',
+  weak_trend_max_loss_usdt: 'weak_trend_max_loss_usdt — Max estimated loss after min-notional bump',
 
   // Anti-noise / trend quality (.90–.92)
   enable_ci_noise_filter: 'enable_ci_noise_filter — Reject high CI (choppy) setups',
@@ -177,18 +187,28 @@ const GROUPS = [
     ],
   },
   {
-    title: 'Range scalp (.97) — CHOP/WEAK path',
+    title: 'Range + weak trend (.98) — CHOP/WEAK scalps',
     keys: [
       'enable_range_scalp',
+      'range_signal_only',
       'range_min_confluence',
       'range_max_sl_distance_pct',
       'range_min_rr',
+      'range_min_tp_pct',
       'range_size_mult',
+      'range_max_loss_usdt',
       'range_max_open_positions',
+      'range_time_stop_sec',
+      'range_win_cooldown_sec',
       'range_ci_hard_max',
       'range_er_floor',
       'range_allow_btc_weak',
       'range_allow_btc_chop',
+      'enable_weak_trend',
+      'weak_trend_size_mult',
+      'weak_trend_min_confluence',
+      'weak_trend_min_adx',
+      'weak_trend_max_loss_usdt',
     ],
   },
   {
@@ -400,7 +420,7 @@ export default function SettingsPanel() {
             Real-trading parameters. After save they apply immediately (no Relaunch).
             Extreme values can stop entries or increase risk.
             <br />
-            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 25). <b dir="ltr">chop_adx_threshold</b> is legacy only. V.2.10.94.1 adds <b dir="ltr">breakeven_min_r</b>, post_negative, global_sl, regime_adverse, stale_flat. Anti-noise block includes <b dir="ltr">anti_noise_fail_closed</b> and <b dir="ltr">enable_real_m5_closed_trigger</b>. V.2.10.97: <b dir="ltr">Range scalp</b> group — separate path for BTC WEAK/CHOP (half size, tighter SL). Does not disable trend CHOP gate.
+            <b dir="ltr">min_adx_1h_for_entry</b> is the real entry gate (default 20). <b dir="ltr">chop_adx_threshold</b> is legacy only. V.2.10.98 adds an independent range engine and a weak_trend path. Range orders are live unless <b dir="ltr">range_signal_only</b> is on. After deploy, set <b dir="ltr">range_min_rr</b> to 0.80 and Save — a stored 1.05 from .97 overrides the new default.
           </p>
           {msg && <p className="error-note" style={{ color: '#2DD4A7' }}>{msg}</p>}
           {err && <p className="error-note">{err}</p>}
