@@ -57,6 +57,10 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.11.3 — protected entry (limit IOC with slippage cap)
+  entry_protected_ioc: 'entry_protected_ioc — Entry as LIMIT+IOC capped at max slippage (unfilled = no trade, no fee). Turn on only after the self-test passes',
+  entry_max_slippage_pct: 'entry_max_slippage_pct — Max entry slippage % (auto-shrunk so any fill also passes the post-fill guard)',
+  entry_protected_ioc_selftest: 'entry_protected_ioc_selftest — Once per restart: place a far-from-market IOC test order (cannot fill) to verify exchange accepts it; see protected_entry in status',
   // V.2.11.0 — BTC drift alignment
   btc_drift_guard_range: 'btc_drift_guard_range — Do not open range trades against a confirmed BTC drift (tracked as paper trades instead)',
   btc_drift_min_ret_pct: 'btc_drift_min_ret_pct — BTC move over the window (%) that, with the 1h EMA stack, confirms a drift',
@@ -200,6 +204,14 @@ const GROUPS = [
       'adx_strong_bypass_btc',
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
+    ],
+  },
+  {
+    title: 'Protected entry (2.11.3) — no bad fills',
+    keys: [
+      'entry_protected_ioc_selftest',
+      'entry_protected_ioc',
+      'entry_max_slippage_pct',
     ],
   },
   {
