@@ -57,6 +57,9 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.10.100
+  pre_order_slip_band_pct: 'pre_order_slip_band_pct — Range: skip the order if the post-fill guard would fail within ±this % of the live price (saves instant-cancel fees)',
+  range_exit_ignore_regime: 'range_exit_ignore_regime — Range BE/profit-lock ignore regime_adverse (default OFF = .99 behavior; turn on only after reviewing the ledger)',
   enable_weak_trend: 'enable_weak_trend — Reduced-size trend when the symbol is healthy and BTC is WEAK/CHOP',
   weak_trend_size_mult: 'weak_trend_size_mult — Size multiplier for weak_trend',
   weak_trend_min_confluence: 'weak_trend_min_confluence — Min score for weak_trend',
@@ -200,6 +203,8 @@ const GROUPS = [
       'range_max_open_positions',
       'range_time_stop_sec',
       'range_win_cooldown_sec',
+      'pre_order_slip_band_pct',
+      'range_exit_ignore_regime',
       'range_ci_hard_max',
       'range_er_floor',
       'range_allow_btc_weak',
