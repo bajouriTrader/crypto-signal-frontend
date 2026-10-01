@@ -730,7 +730,11 @@ export default function RealTradePanel() {
                           })
                         }
                       } catch (_) {}
-                      const ver = r.app_version_close || r.app_version || r.close_app_version || '—'
+                      // V.2.10.101 — نسخهٔ معامله = نسخهٔ زمان باز شدن؛ بدون تطبیق = «—» (جعل نمی‌شود)
+                      const ver = r.app_version || r.app_version_close || r.close_app_version || '—'
+                      const strat = r.strategy_id === 'range_scalp' ? 'رنج'
+                        : r.strategy_id === 'weak_trend' ? 'weak'
+                          : r.strategy_id === 'trend' ? 'روند' : ''
                       return (
                         <div
                           key={String(r.symbol) + i + String(r.exit_price || '') + String(ts)}
@@ -757,6 +761,7 @@ export default function RealTradePanel() {
                             <div style={{ color: '#778899', fontSize: 11, marginTop: 2 }} dir="ltr">
                               {when}
                               <span style={{ color: '#5a7a9a', marginRight: 8 }}> · {ver}</span>
+                              {strat && <span style={{ color: '#7a8fa6', marginRight: 6 }}> · {strat}</span>}
                             </div>
                           </div>
                           <strong dir="ltr" style={{ color: pnl >= 0 ? '#2DD4A7' : '#FF5C72', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>

@@ -40,7 +40,8 @@ export function fmtTime(iso) {
 /** نسخه معامله — هرگز با نسخه فعلی سیستم جایگزین نشود */
 export function fmtTradeVersion(r) {
   if (!r || typeof r !== 'object') return 'نامشخص'
-  const v = r.app_version_close || r.app_version || r.version
+  // V.2.10.101 — نسخهٔ زمان باز شدن اولویت دارد
+  const v = r.app_version || r.app_version_close || r.version
   if (v === null || v === undefined || v === '') return 'نامشخص'
   return String(v)
 }
