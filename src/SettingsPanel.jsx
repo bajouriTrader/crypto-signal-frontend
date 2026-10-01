@@ -129,8 +129,13 @@ const LABELS = {
 
   // News blackout
   enable_news_blackout: 'enable_news_blackout — Block entries around high-impact USD news',
-  news_blackout_minutes_before: 'news_blackout_minutes_before — Minutes before event',
-  news_blackout_minutes_after: 'news_blackout_minutes_after — Minutes after event',
+  news_blackout_minutes_before: 'news_blackout_minutes_before — Tier A (or all, if tiering off): minutes before event',
+  news_blackout_minutes_after: 'news_blackout_minutes_after — Tier A (or all, if tiering off): minutes after event',
+  // V.2.11.2 — tiered news (crypto relevance)
+  news_tiered: 'news_tiered — Tiered blackout: A (FOMC/CPI/NFP/Powell) full window, B (PCE/PPI/GDP/Retail/ISM/JOLTS/ADP) short, C (claims/S&P PMI/oil/housing…) no block',
+  news_tier_b_minutes_before: 'news_tier_b_minutes_before — Tier B: minutes before event',
+  news_tier_b_minutes_after: 'news_tier_b_minutes_after — Tier B: minutes after event',
+  news_block_tier_c: 'news_block_tier_c — Also block tier C events (old behavior)',
 
   // Exit / profit
   profit_lock_trigger: 'profit_lock_trigger — Profit lock (progress to TP)',
@@ -283,6 +288,10 @@ const GROUPS = [
       'enable_news_blackout',
       'news_blackout_minutes_before',
       'news_blackout_minutes_after',
+      'news_tiered',
+      'news_tier_b_minutes_before',
+      'news_tier_b_minutes_after',
+      'news_block_tier_c',
     ],
   },
   {
