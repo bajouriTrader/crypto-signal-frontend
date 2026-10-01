@@ -57,6 +57,14 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.11.0 — BTC drift alignment
+  btc_drift_guard_range: 'btc_drift_guard_range — Do not open range trades against a confirmed BTC drift (tracked as paper trades instead)',
+  btc_drift_min_ret_pct: 'btc_drift_min_ret_pct — BTC move over the window (%) that, with the 1h EMA stack, confirms a drift',
+  btc_drift_window_min: 'btc_drift_window_min — Drift window in minutes (closed 15m candles)',
+  btc_drift_trend_follow: 'btc_drift_trend_follow — During BTC pause, allow trend signals in the drift direction (weak_trend size)',
+  btc_drift_follow_min_symbol_conf: 'btc_drift_follow_min_symbol_conf — Min confidence when the symbol label is WEAK (TREND always ok)',
+  btc_drift_same_dir_cap: 'btc_drift_same_dir_cap — Same-direction cap for the drift-aligned side (normal cap 1 when BTC is weak)',
+  paper_track_blocked: 'paper_track_blocked — Track drift-blocked range signals as paper trades (no orders)',
   // V.2.10.100
   pre_order_slip_band_pct: 'pre_order_slip_band_pct — Range: skip the order if the post-fill guard would fail within ±this % of the live price (saves instant-cancel fees)',
   range_exit_ignore_regime: 'range_exit_ignore_regime — Range BE/profit-lock ignore regime_adverse (default OFF = .99 behavior; turn on only after reviewing the ledger)',
@@ -187,6 +195,18 @@ const GROUPS = [
       'adx_strong_bypass_btc',
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
+    ],
+  },
+  {
+    title: 'BTC drift alignment (2.11) — trade with BTC, not against it',
+    keys: [
+      'btc_drift_guard_range',
+      'btc_drift_min_ret_pct',
+      'btc_drift_window_min',
+      'btc_drift_trend_follow',
+      'btc_drift_follow_min_symbol_conf',
+      'btc_drift_same_dir_cap',
+      'paper_track_blocked',
     ],
   },
   {
