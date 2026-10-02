@@ -57,6 +57,11 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.11.6 — same-direction underwater guard
+  underwater_block_same_dir: 'underwater_block_same_dir — Block a new same-direction entry while an open same-direction position is in loss',
+  underwater_min_loss_pct: 'underwater_min_loss_pct — Loss % of the open position that counts as underwater (0.05 = old fixed value)',
+  underwater_min_loss_usdt: 'underwater_min_loss_usdt — Loss $ of the open position that counts as underwater (0.02 = old fixed value)',
+  paper_track_underwater_rejects: 'paper_track_underwater_rejects — Paper-track signals rejected ONLY by this guard (all other gates passed)',
   // V.2.11.3 — protected entry (limit IOC with slippage cap)
   entry_protected_ioc: 'entry_protected_ioc — Entry as LIMIT+IOC capped at max slippage (unfilled = no trade, no fee). Turn on only after the self-test passes',
   entry_max_slippage_pct: 'entry_max_slippage_pct — Max entry slippage % (auto-shrunk so any fill also passes the post-fill guard)',
@@ -205,6 +210,15 @@ const GROUPS = [
       'adx_strong_bypass_btc',
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
+    ],
+  },
+  {
+    title: 'Same-direction guard (2.11.6) — measured with paper trades',
+    keys: [
+      'underwater_block_same_dir',
+      'underwater_min_loss_pct',
+      'underwater_min_loss_usdt',
+      'paper_track_underwater_rejects',
     ],
   },
   {
