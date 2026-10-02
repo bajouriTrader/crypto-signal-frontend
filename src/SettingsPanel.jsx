@@ -73,6 +73,8 @@ const LABELS = {
   btc_drift_trend_follow: 'btc_drift_trend_follow — During BTC pause, allow trend signals in the drift direction (weak_trend size)',
   btc_drift_follow_min_symbol_conf: 'btc_drift_follow_min_symbol_conf — Min confidence when the symbol label is WEAK (TREND always ok)',
   btc_drift_same_dir_cap: 'btc_drift_same_dir_cap — Same-direction cap for the drift-aligned side (normal cap 1 when BTC is weak)',
+  btc_drift_strong_ret_pct: 'btc_drift_strong_ret_pct — BTC 2h move % that counts as drift even if the 1h stack has not turned yet',
+  btc_drift_strong_ret_1h_pct: 'btc_drift_strong_ret_1h_pct — BTC 1h move % that counts as drift even if the 1h stack has not turned yet',
   paper_track_blocked: 'paper_track_blocked — Master switch for paper trades (signals blocked by one filter; no orders)',
   paper_track_rr_rejects: 'paper_track_rr_rejects — Paper-track trend signals rejected ONLY by net R:R (all other gates passed)',
   // V.2.10.100
@@ -238,6 +240,8 @@ const GROUPS = [
       'btc_drift_trend_follow',
       'btc_drift_follow_min_symbol_conf',
       'btc_drift_same_dir_cap',
+      'btc_drift_strong_ret_pct',
+      'btc_drift_strong_ret_1h_pct',
       'paper_track_blocked',
       'paper_track_rr_rejects',
     ],
