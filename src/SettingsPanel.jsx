@@ -57,6 +57,12 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.11.8 — range exits (decided on exit_whatif n=20)
+  range_fail_exit: 'range_fail_exit — Range: close a failed entry early (after N sec, almost no profit, price ≥ X·R against)',
+  range_fail_exit_min_sec: 'range_fail_exit_min_sec — Seconds after entry before the failed-entry check (600 = 10 min)',
+  range_fail_exit_mfe_max_pct: 'range_fail_exit_mfe_max_pct — Max favorable move % still counted as "never worked" (0.15)',
+  range_fail_exit_adverse_r: 'range_fail_exit_adverse_r — Adverse move (in R) that triggers the exit (0.3)',
+  range_profit_lock: 'range_profit_lock — Range: 72% profit lock / float exit (OFF = let range trades reach the exchange TP at the midline)',
   // V.2.11.6 — same-direction underwater guard
   underwater_block_same_dir: 'underwater_block_same_dir — Block a new same-direction entry while an open same-direction position is in loss',
   underwater_min_loss_pct: 'underwater_min_loss_pct — Loss % of the open position that counts as underwater (0.05 = old fixed value)',
@@ -212,6 +218,16 @@ const GROUPS = [
       'adx_strong_bypass_btc',
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
+    ],
+  },
+  {
+    title: 'Range exits (2.11.8) — failed-entry exit, no early profit lock',
+    keys: [
+      'range_fail_exit',
+      'range_fail_exit_min_sec',
+      'range_fail_exit_mfe_max_pct',
+      'range_fail_exit_adverse_r',
+      'range_profit_lock',
     ],
   },
   {
