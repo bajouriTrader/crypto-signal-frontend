@@ -63,6 +63,9 @@ const LABELS = {
   range_fail_exit_mfe_max_pct: 'range_fail_exit_mfe_max_pct — Max favorable move % still counted as "never worked" (0.15)',
   range_fail_exit_adverse_r: 'range_fail_exit_adverse_r — Adverse move (in R) that triggers the exit (0.3)',
   range_profit_lock: 'range_profit_lock — Range: 72% profit lock / float exit (OFF = let range trades reach the exchange TP at the midline)',
+  range_small_tp_auto: 'range_small_tp_auto — Range "take small profit" (+0.40% / +0.50%) switches ON automatically only when the 1m-path data shows it beats current rules; OFF = never',
+  range_small_tp_min_n: 'range_small_tp_min_n — Minimum range trades with 1m paths before auto-enable',
+  range_small_tp_min_delta_pp: 'range_small_tp_min_delta_pp — Required total advantage vs current rules (percentage points)',
   // V.2.11.6 — same-direction underwater guard
   underwater_block_same_dir: 'underwater_block_same_dir — Block a new same-direction entry while an open same-direction position is in loss',
   underwater_min_loss_pct: 'underwater_min_loss_pct — Loss % of the open position that counts as underwater (0.05 = old fixed value)',
@@ -228,6 +231,9 @@ const GROUPS = [
       'range_fail_exit_mfe_max_pct',
       'range_fail_exit_adverse_r',
       'range_profit_lock',
+      'range_small_tp_auto',
+      'range_small_tp_min_n',
+      'range_small_tp_min_delta_pp',
     ],
   },
   {
