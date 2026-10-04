@@ -86,6 +86,8 @@ const LABELS = {
   btc_drift_strong_ret_1h_pct: 'btc_drift_strong_ret_1h_pct — BTC 1h move % that counts as drift even if the 1h stack has not turned yet',
   paper_track_blocked: 'paper_track_blocked — Master switch for paper trades (signals blocked by one filter; no orders)',
   paper_track_rr_rejects: 'paper_track_rr_rejects — Paper-track trend signals rejected ONLY by net R:R (all other gates passed)',
+  paper_track_slmin_rejects: 'paper_track_slmin_rejects — Trend signals rejected ONLY for SL below the minimum: paper-trade them with SL widened to the minimum and the smallest valid TP',
+  paper_track_samedir_cap_rejects: 'paper_track_samedir_cap_rejects — Signals rejected ONLY by the "1 same-direction position when BTC is weak" cap: paper-trade them',
   // V.2.10.100
   pre_order_slip_band_pct: 'pre_order_slip_band_pct — Range: skip the order if the post-fill guard would fail within ±this % of the live price (saves instant-cancel fees)',
   range_exit_ignore_regime: 'range_exit_ignore_regime — Range BE/profit-lock ignore regime_adverse (default OFF = .99 behavior; turn on only after reviewing the ledger)',
@@ -266,6 +268,8 @@ const GROUPS = [
       'btc_drift_strong_ret_1h_pct',
       'paper_track_blocked',
       'paper_track_rr_rejects',
+      'paper_track_slmin_rejects',
+      'paper_track_samedir_cap_rejects',
     ],
   },
   {
