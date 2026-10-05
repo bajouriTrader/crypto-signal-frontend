@@ -88,6 +88,9 @@ const LABELS = {
   paper_track_rr_rejects: 'paper_track_rr_rejects — Paper-track trend signals rejected ONLY by net R:R (all other gates passed)',
   paper_track_slmin_rejects: 'paper_track_slmin_rejects — Trend signals rejected ONLY for SL below the minimum: paper-trade them with SL widened to the minimum and the smallest valid TP',
   paper_track_samedir_cap_rejects: 'paper_track_samedir_cap_rejects — Signals rejected ONLY by the "1 same-direction position when BTC is weak" cap: paper-trade them',
+  paper_track_overext_rejects: 'paper_track_overext_rejects — Trend signals rejected ONLY as "overextended" (≥1.25 ATR from mean): paper-trade them, split strong vs normal trend',
+  overext_strong_er: 'overext_strong_er — "Very strong trend" definition: symbol 1h ER at least this',
+  overext_strong_adx: 'overext_strong_adx — "Very strong trend" definition: symbol 1h ADX at least this',
   // V.2.10.100
   pre_order_slip_band_pct: 'pre_order_slip_band_pct — Range: skip the order if the post-fill guard would fail within ±this % of the live price (saves instant-cancel fees)',
   range_exit_ignore_regime: 'range_exit_ignore_regime — Range BE/profit-lock ignore regime_adverse (default OFF = .99 behavior; turn on only after reviewing the ledger)',
@@ -270,6 +273,9 @@ const GROUPS = [
       'paper_track_rr_rejects',
       'paper_track_slmin_rejects',
       'paper_track_samedir_cap_rejects',
+      'paper_track_overext_rejects',
+      'overext_strong_er',
+      'overext_strong_adx',
     ],
   },
   {
