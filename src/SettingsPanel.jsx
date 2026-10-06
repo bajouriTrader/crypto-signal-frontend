@@ -60,6 +60,7 @@ const LABELS = {
   // V.2.12.0 — backtest
   backtest_enabled: 'backtest_enabled — Run the range-strategy backtest on the server automatically (results in status → backtest)',
   backtest_days: 'backtest_days — Days of history to test (7–60)',
+  backtest_trend_enabled: 'backtest_trend_enabled — Also backtest the trend / weak_trend path (heavier, runs in a separate process ~15 min)',
   backtest_every_hours: 'backtest_every_hours — Re-run interval in hours',
   backtest_fee_rt_pct: 'backtest_fee_rt_pct — Round-trip fee % used for the main result (measured ≈0.083)',
   backtest_stop_slip_pct: 'backtest_stop_slip_pct — Extra slippage % on stop exits (measured ≈0.10)',
@@ -236,7 +237,7 @@ const GROUPS = [
   },
   {
     title: 'Backtest (2.12) — where does the system really have an edge?',
-    keys: ['backtest_enabled', 'backtest_days', 'backtest_every_hours', 'backtest_fee_rt_pct', 'backtest_stop_slip_pct'],
+    keys: ['backtest_enabled', 'backtest_trend_enabled', 'backtest_days', 'backtest_every_hours', 'backtest_fee_rt_pct', 'backtest_stop_slip_pct'],
   },
   {
     title: 'Range exits (2.11.8) — failed-entry exit, no early profit lock',
