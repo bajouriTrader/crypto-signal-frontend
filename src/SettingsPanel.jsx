@@ -57,6 +57,12 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.12.0 — backtest
+  backtest_enabled: 'backtest_enabled — Run the range-strategy backtest on the server automatically (results in status → backtest)',
+  backtest_days: 'backtest_days — Days of history to test (7–60)',
+  backtest_every_hours: 'backtest_every_hours — Re-run interval in hours',
+  backtest_fee_rt_pct: 'backtest_fee_rt_pct — Round-trip fee % used for the main result (measured ≈0.083)',
+  backtest_stop_slip_pct: 'backtest_stop_slip_pct — Extra slippage % on stop exits (measured ≈0.10)',
   // V.2.11.8 — range exits (decided on exit_whatif n=20)
   range_fail_exit: 'range_fail_exit — Range: close a failed entry early (after N sec, almost no profit, price ≥ X·R against)',
   range_fail_exit_min_sec: 'range_fail_exit_min_sec — Seconds after entry before the failed-entry check (600 = 10 min)',
@@ -227,6 +233,10 @@ const GROUPS = [
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
     ],
+  },
+  {
+    title: 'Backtest (2.12) — where does the system really have an edge?',
+    keys: ['backtest_enabled', 'backtest_days', 'backtest_every_hours', 'backtest_fee_rt_pct', 'backtest_stop_slip_pct'],
   },
   {
     title: 'Range exits (2.11.8) — failed-entry exit, no early profit lock',
