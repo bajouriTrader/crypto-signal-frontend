@@ -68,7 +68,7 @@ const LABELS = {
   trend_maker_tp: 'trend_maker_tp — After every entry, also place a limit close order at TP (maker fee). Active only after the self-test succeeded',
   // V.2.12.0 — backtest
   backtest_enabled: 'backtest_enabled — Run the range-strategy backtest on the server automatically (results in status → backtest)',
-  backtest_days: 'backtest_days — Days of history to test (7–60)',
+  backtest_days: 'backtest_days — Days of history to test (7–120; 90 recommended for symbol selection)',
   backtest_trend_enabled: 'backtest_trend_enabled — Also backtest the trend / weak_trend path (heavier, runs in a separate process ~15 min)',
   backtest_every_hours: 'backtest_every_hours — Re-run interval in hours',
   backtest_fee_rt_pct: 'backtest_fee_rt_pct — Round-trip fee % used for the main result (measured ≈0.083)',
