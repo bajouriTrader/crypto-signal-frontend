@@ -57,6 +57,15 @@ const LABELS = {
   range_time_stop_sec: 'range_time_stop_sec — Close range trades after this many seconds (5400 = 90m)',
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
+  // V.2.12.3 — trend direction + maker TP
+  auto_matrix: 'auto_matrix — Automatic strategy selection: each signal is matched to strategy × direction × market (bull/bear/neutral); the cell is ON / PROBE / OFF from the latest backtest. Keep ON',
+  matrix_min_n_on: 'matrix_min_n_on — Backtest trades a cell needs (positive in train AND validation) to be fully ON',
+  matrix_min_n_probe: 'matrix_min_n_probe — Backtest trades a cell needs (positive overall) to be PROBE (trades, limited concurrency)',
+  matrix_probe_max_open: 'matrix_probe_max_open — Max simultaneous positions from PROBE cells',
+  matrix_demote_min_n: 'matrix_demote_min_n — Live trades before a cell can be auto-demoted',
+  matrix_demote_avg_pct: 'matrix_demote_avg_pct — Auto-demote a cell when its live average net % falls below this',
+  maker_tp_selftest: 'maker_tp_selftest — Automatic one-time test (limit BUY 2% below market, then cancel) to find a maker order type; runs until it succeeds once',
+  trend_maker_tp: 'trend_maker_tp — After every entry, also place a limit close order at TP (maker fee). Active only after the self-test succeeded',
   // V.2.12.0 — backtest
   backtest_enabled: 'backtest_enabled — Run the range-strategy backtest on the server automatically (results in status → backtest)',
   backtest_days: 'backtest_days — Days of history to test (7–60)',
@@ -234,6 +243,11 @@ const GROUPS = [
       'enable_strong_adx_bypass_btc_pause',
       'enable_adx_bypass_btc_chop',
     ],
+  },
+  {
+    title: 'Automatic strategy selection (2.13) — the platform decides',
+    keys: ['auto_matrix', 'matrix_min_n_on', 'matrix_min_n_probe', 'matrix_probe_max_open', 'matrix_demote_min_n',
+      'matrix_demote_avg_pct', 'maker_tp_selftest', 'trend_maker_tp'],
   },
   {
     title: 'Backtest (2.12) — where does the system really have an edge?',
