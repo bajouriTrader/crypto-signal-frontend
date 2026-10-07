@@ -58,6 +58,8 @@ const LABELS = {
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
   // V.2.12.3 — trend direction + maker TP
+  size_up_enabled: 'size_up_enabled — Bigger size ONLY for proven cells: matrix ON + ≥30 profitable live trades consistent with the backtest; loss to SL capped at 1% of equity',
+  size_up_mult: 'size_up_mult — Maximum size multiplier for proven cells (1–3, default 2)',
   rel_strength_enabled: 'rel_strength_enabled — Relative-strength strategy (scan every 4h; enters only when the automatic matrix allows it)',
   auto_matrix: 'auto_matrix — Automatic strategy selection: each signal is matched to strategy × direction × market (bull/bear/neutral); the cell is ON / PROBE / OFF from the latest backtest. Keep ON',
   matrix_min_n_on: 'matrix_min_n_on — Backtest trades a cell needs (positive in train AND validation) to be fully ON',
@@ -247,7 +249,7 @@ const GROUPS = [
   },
   {
     title: 'Automatic strategy selection (2.13) — the platform decides',
-    keys: ['auto_matrix', 'rel_strength_enabled', 'matrix_min_n_on', 'matrix_min_n_probe', 'matrix_probe_max_open', 'matrix_demote_min_n',
+    keys: ['auto_matrix', 'rel_strength_enabled', 'size_up_enabled', 'size_up_mult', 'matrix_min_n_on', 'matrix_min_n_probe', 'matrix_probe_max_open', 'matrix_demote_min_n',
       'matrix_demote_avg_pct', 'maker_tp_selftest', 'trend_maker_tp'],
   },
   {
