@@ -58,6 +58,9 @@ const LABELS = {
   range_win_cooldown_sec: 'range_win_cooldown_sec — Cooldown after a winning range exit',
   range_max_loss_usdt: 'range_max_loss_usdt — Max estimated loss after rounding up to min notional',
   // V.2.12.3 — trend direction + maker TP
+  tsmom_enabled: 'tsmom_enabled — Daily trend strategy on BTC/ETH/SOL/BNB (checked once a day; trades only if the 2-year test passed and the matrix allows)',
+  tsmom_live_sl_cap_pct: 'tsmom_live_sl_cap_pct — Max stop distance % for daily trend trades (6% ≈ $1.5 loss at the $25 minimum size)',
+  backtest_daily_enabled: 'backtest_daily_enabled — Include the 2-year daily research in the backtest',
   size_up_enabled: 'size_up_enabled — Bigger size ONLY for proven cells: matrix ON + ≥30 profitable live trades consistent with the backtest; loss to SL capped at 1% of equity',
   size_up_mult: 'size_up_mult — Maximum size multiplier for proven cells (1–3, default 2)',
   rel_strength_enabled: 'rel_strength_enabled — Relative-strength strategy (scan every 4h; enters only when the automatic matrix allows it)',
@@ -249,7 +252,8 @@ const GROUPS = [
   },
   {
     title: 'Automatic strategy selection (2.13) — the platform decides',
-    keys: ['auto_matrix', 'rel_strength_enabled', 'size_up_enabled', 'size_up_mult', 'matrix_min_n_on', 'matrix_min_n_probe', 'matrix_probe_max_open', 'matrix_demote_min_n',
+    keys: ['auto_matrix', 'rel_strength_enabled', 'tsmom_enabled', 'tsmom_live_sl_cap_pct', 'backtest_daily_enabled',
+      'size_up_enabled', 'size_up_mult', 'matrix_min_n_on', 'matrix_min_n_probe', 'matrix_probe_max_open', 'matrix_demote_min_n',
       'matrix_demote_avg_pct', 'maker_tp_selftest', 'trend_maker_tp'],
   },
   {
