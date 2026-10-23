@@ -280,9 +280,10 @@ function PosCard({ t, onClose, closing }) {
             title="مدت باز بودن پوزیشن"
           >
             ⏱ {formatElapsed(t.elapsed_sec)}
+            {t.max_hold_h ? ` / ${t.max_hold_h}h` : ''}
           </span>
-          {t.score != null && (
-            <span style={{ fontSize: 10, color: '#7a8a9a' }}>امتیاز {t.score}</span>
+          {t.strategy_id && (
+            <span style={{ fontSize: 10, color: '#7a8a9a' }} title="استراتژی (V.2.35.0)">{t.strategy_id}</span>
           )}
         </div>
         <div dir="ltr" style={{ textAlign: 'left', minWidth: 88 }}>
@@ -426,7 +427,8 @@ export default function RealTradePanel() {
 
   useEffect(() => {
     load(true)
-    timerRef.current = setInterval(() => load(true), 5000)
+    // V.2.35.0 — هر ۱۵ ثانیه و فقط وقتی تب دیده می‌شود (status سنگین است)
+    timerRef.current = setInterval(() => { if (!document.hidden) load(true) }, 15000)
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
       if (flashTimerRef.current) clearTimeout(flashTimerRef.current)
@@ -469,7 +471,9 @@ export default function RealTradePanel() {
           ) : status ? (
             <span style={{ color: '#888', marginRight: 8 }}>○ خاموش</span>
           ) : null}
-          {status?.auto_entry_pause ? (
+          {status?.gh_entry?.blocked ? (
+            <span style={{ color: '#F5A623', marginRight: 8, fontWeight: 700 }}>⏸ {status.gh_entry.why}</span>
+          ) : status?.auto_entry_pause ? (
             <span style={{ color: '#F5A623', marginRight: 8, fontWeight: 700 }}>⏸ pause ورود</span>
           ) : status?.real_trading_enabled && status?.enable_new_entries !== false ? (
             <span style={{ color: '#2DD4A7', marginRight: 8 }}>▶ خودکار</span>
@@ -541,9 +545,9 @@ export default function RealTradePanel() {
               >
                 <span>قفل {mgr.profit_lock_trigger ?? '—'} · BE {mgr.breakeven_trigger_pct ?? '—'}%</span>
                 <span>·</span>
-                <span>سیگنال ≥ {status.min_confluence}</span>
+                <span>استراتژی‌های زنده: {status.gh_entry?.live?.length ?? '—'}</span>
                 <span>·</span>
-                <span>سقف {Math.round((mgr.max_hold_seconds || 0) / 3600)}h</span>
+                <span>سقف نگه‌داری: ۱۲h (۱ ساعته) / ۲۴h (۴ ساعته)</span>
               </div>
 
 
@@ -650,7 +654,8 @@ export default function RealTradePanel() {
                         )}
                   </div>
                   <div style={{ fontSize: 11, color: status.auto_entry_pause ? '#d4b86a' : '#8ab4a4', lineHeight: 1.4 }}>
-                    {status.entry_block_summary?.line
+                    {status.gh_entry?.line
+                      || status.entry_block_summary?.line
                       || status.auto_entry_pause_reason
                       || (status.entry_block_summary?.can_enter
                         ? `آزاد · منتظر score≥${status.min_confluence ?? 92}`
@@ -734,7 +739,7 @@ export default function RealTradePanel() {
                       const ver = r.app_version || r.app_version_close || r.close_app_version || '—'
                       const strat = r.strategy_id === 'range_scalp' ? 'رنج'
                         : r.strategy_id === 'weak_trend' ? 'weak'
-                          : r.strategy_id === 'trend' ? 'روند' : ''
+                          : r.strategy_id === 'trend' ? 'روند' : (r.strategy_id || '')
                       return (
                         <div
                           key={String(r.symbol) + i + String(r.exit_price || '') + String(ts)}

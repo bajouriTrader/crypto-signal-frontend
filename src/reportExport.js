@@ -155,22 +155,27 @@ export async function fetchDemoTrades(apiBaseUrl) {
 // دانلود سریع کل گزارش مارک‌داون بدون نیاز به باز کردن پنل گزارش —
 // برای دکمه‌ی «دانلود گزارش» بالای صفحه‌ی اصلی.
 export async function quickDownloadFullReport(apiBaseUrl) {
-  // V.2.10.33: سبک — گزارش ریل به‌جای دانلود سنگین دمو
-  const res = await authFetch(`${apiBaseUrl}/real-trade/status`)
+  // V.2.35.0 — گزارش فشرده (compact=1) + وضعیت استراتژی‌های GH که واقعاً معامله می‌کنند
+  const res = await authFetch(`${apiBaseUrl}/real-trade/status?compact=1`)
   if (!res.ok) throw new Error(`خطای سرور (کد ${res.status})`)
   const st = await res.json()
-  const recent = Array.isArray(st.recent_closed) ? st.recent_closed : []
+  const recent = Array.isArray(st.recent_closed) ? st.recent_closed : (Array.isArray(st.ledger_recent) ? st.ledger_recent : [])
+  const gh = st.github_strategies || {}
   let md = '# SignalDesk Real Report\n\n'
   md += `نسخه: ${st.app_version || '—'}\n`
-  md += `موجودی آزاد: ${st.available_usdt}\n`
+  md += `موجودی: ${st.equity_usdt ?? '—'} · آزاد: ${st.available_usdt}\n`
   md += `پوزیشن باز: ${st.open_positions}/${st.max_open_positions}\n`
-  md += `min_confluence: ${st.min_confluence}\n\n`
-  md += '## معاملات اخیر بسته‌شده\n\n'
-  md += '| نماد | جهت | ورود | خروج | PnL | دلیل |\n| --- | --- | --- | --- | --- | --- |\n'
-  for (const r of recent) {
-    md += `| ${r.symbol} | ${r.direction} | ${r.entry} | ${r.exit_price} | ${r.approx_pnl} | ${r.exit_reason || ''} |\n`
+  md += `ورود: ${st.gh_entry?.line || '—'}\n\n`
+  md += '## پوزیشن‌های باز\n\n| نماد | جهت | استراتژی | PnL% | باز (h) |\n| --- | --- | --- | --- | --- |\n'
+  for (const t of (st.tracked || [])) {
+    md += `| ${t.symbol} | ${t.direction} | ${t.strategy_id || ''} | ${Number(t.unrealized_pct ?? 0).toFixed(2)} | ${(Number(t.elapsed_sec || 0) / 3600).toFixed(1)} / ${t.max_hold_h ?? '—'} |\n`
   }
-  md += '\n## فیلترهای ورود\n\n```json\n' + JSON.stringify(st.entry_filters || {}, null, 2) + '\n```\n'
+  md += '\n## معاملات اخیر بسته‌شده\n\n'
+  md += '| نماد | جهت | استراتژی | ورود | خروج | PnL | دلیل |\n| --- | --- | --- | --- | --- | --- | --- |\n'
+  for (const r of recent) {
+    md += `| ${r.symbol} | ${r.direction} | ${r.strategy_id || ''} | ${r.entry ?? r.entry_fill ?? ''} | ${r.exit_price ?? ''} | ${r.approx_pnl ?? r.pnl_usdt ?? ''} | ${r.exit_reason || ''} |\n`
+  }
+  md += '\n## استراتژی‌های GH\n\n```json\n' + JSON.stringify({ strategies: gh.strategies, live: gh.live?.state, scans: gh.live?.scans_recent }, null, 2) + '\n```\n'
   downloadMarkdownFile(md, `real-status-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.md`)
   return { total: recent.length }
 }
