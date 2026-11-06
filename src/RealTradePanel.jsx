@@ -1,5 +1,6 @@
 import { authFetch } from './auth'
 import { useEffect, useState, useRef } from 'react'
+import AgentPipeline from './AgentPipeline'
 
 const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 const STATUS_VIEWER = 'https://asalehb-crypto-signal-backend.hf.space/status-viewer'
@@ -531,6 +532,8 @@ export default function RealTradePanel() {
                 />
               </div>
 
+              <AgentPipeline status={status} />
+
               <div
                 style={{
                   display: 'flex',
@@ -839,6 +842,12 @@ export default function RealTradePanel() {
         }
         @media (max-width: 519px) {
           .rt-metrics { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+        @media (min-width: 720px) {
+          .rt-agents { grid-template-columns: repeat(3, 1fr) !important; }
+        }
+        @media (max-width: 519px) {
+          .rt-agent-en { display: none; }
         }
         .pos-levels {
           display: flex !important;
