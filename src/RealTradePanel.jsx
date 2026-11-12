@@ -317,6 +317,13 @@ function PathBar({ direction, entry, sl, tp, price }) {
 }
 
 function PosCard({ t, onClose, closing }) {
+  // V.2.42.2 — بستن دو مرحله‌ای: لمس اول فقط تأیید می‌خواهد و بعد از ۴ ثانیه برمی‌گردد (جلوگیری از لمس اشتباه)
+  const [confirming, setConfirming] = useState(false)
+  useEffect(() => {
+    if (!confirming) return undefined
+    const id = setTimeout(() => setConfirming(false), 4000)
+    return () => clearTimeout(id)
+  }, [confirming])
   const sym = t.symbol
   const dir = t.direction
   const upnl = Number(t.unrealized_usdt ?? 0)
@@ -457,11 +464,16 @@ function PosCard({ t, onClose, closing }) {
         <button
           type="button"
           disabled={closing}
-          onClick={() => onClose(sym)}
+          onClick={() => {
+            if (!confirming) { setConfirming(true); return }
+            setConfirming(false)
+            onClose(sym)
+          }}
           style={{
-            background: '#2a1520',
-            border: '1px solid #5a2a35',
-            color: '#ff8a9a',
+            background: confirming ? '#7a1f2e' : '#2a1520',
+            border: `1px solid ${confirming ? '#ff5c72' : '#5a2a35'}`,
+            color: confirming ? '#fff' : '#ff8a9a',
+            fontWeight: confirming ? 700 : 400,
             borderRadius: 10,
             padding: '8px 18px',
             minHeight: 42,
@@ -469,7 +481,7 @@ function PosCard({ t, onClose, closing }) {
             cursor: closing ? 'wait' : 'pointer',
           }}
         >
-          {closing ? '…' : 'بستن'}
+          {closing ? '…' : confirming ? <>تأیید بستن <bdi dir="ltr">{sym}</bdi>؟</> : 'بستن'}
         </button>
       </div>
     </div>
@@ -813,6 +825,12 @@ export default function RealTradePanel() {
         .rt2-h { font-size: 14px; font-weight: 700; color: #c9d5e2; margin: 0 0 8px; }
         .rt2-empty { padding: 16px 12px; text-align: center; color: #7a8a9a; border: 1px dashed #2a3a4c; border-radius: 12px; margin-bottom: 18px; font-size: 13px; }
         .rt2-list { max-height: 330px; overflow-y: auto; border: 1px solid #1f2c3c; border-radius: 12px; padding: 2px 12px; background: #101824; margin-bottom: 12px; }
+        .rt2-list { scrollbar-width: thin; scrollbar-color: #2a3a4c transparent; }
+        .rt2-list::-webkit-scrollbar { width: 8px; }
+        .rt2-list::-webkit-scrollbar-track { background: transparent; }
+        .rt2-list::-webkit-scrollbar-thumb { background: #2a3a4c; border-radius: 8px; }
+        .rt2-list::-webkit-scrollbar-thumb:hover { background: #3a4d63; }
+        .rt2-list::-webkit-scrollbar-button { display: none; }
         .rt2-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #1a2634; }
         .rt2-row:last-child { border-bottom: 0; }
         .rt2-row-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; font-size: 14px; }
