@@ -1,5 +1,4 @@
-@import url('https://cdn.jsdelivr.net/npm/@fontsource/vazirmatn@5.0.5/index.css');
-@import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5.0.20/index.css');
+/* V.2.42.1 — فونت‌ها از index.html و بدون مسدود کردن صفحه بارگذاری می‌شوند */
 
 :root {
   --ink: #0a0d12;
@@ -33,7 +32,7 @@ body {
     transparent 55%
   );
   color: var(--text);
-  font-family: 'Vazirmatn', sans-serif;
+  font-family: 'Vazirmatn', Tahoma, 'Noto Sans Arabic', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -2145,4 +2144,80 @@ body {
   .ff-news {
     max-width: 100%;
   }
+}
+
+
+/* --- V.2.42.1 — ظاهر ساده‌تر: سربرگ فشرده، ناوبری دکمه‌ای، بخش‌های جمع‌شونده --- */
+.topbar {
+  align-items: center;
+  padding: 12px 20px;
+  gap: 10px 16px;
+}
+.topbar-status {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.topbar-admin-link,
+.topbar-download-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: #c9d5e2;
+  font-size: 13px;
+  text-decoration: none;
+}
+.topbar-admin-link:hover,
+.topbar-download-btn:hover {
+  border-color: #3a4a5e;
+  color: var(--text);
+}
+.topbar-admin-link:focus-visible,
+.topbar-download-btn:focus-visible,
+.sd-tools > summary:focus-visible {
+  outline: 2px solid #6fb7ff;
+  outline-offset: 2px;
+}
+.sd-tools {
+  margin: 0 0 24px;
+  border: 1px solid #1f2c3c;
+  border-radius: 12px;
+  background: #0f1722;
+}
+.sd-tools > summary {
+  cursor: pointer;
+  padding: 12px 14px;
+  min-height: 44px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #aebccb;
+  list-style-position: inside;
+}
+.sd-tools-body {
+  padding: 4px 12px 14px;
+}
+.sd-tools .intake-title {
+  font-size: 20px;
+}
+@media (max-width: 640px) {
+  .topbar {
+    padding: 10px 12px;
+  }
+  .topbar-status {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .topbar-admin-link,
+  .topbar-download-btn {
+    justify-content: center;
+    padding: 0 8px;
+  }
+}
+.topbar-status .footer-divider {
+  display: none;
 }

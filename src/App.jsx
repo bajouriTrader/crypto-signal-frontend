@@ -16,7 +16,7 @@ const API_BASE_URL = 'https://asalehb-crypto-signal-backend.hf.space'
 // V.2.4: دانلود مستقیم گزارش از صفحه‌ی اصلی (بدون نیاز به باز کردن پنل
 // گزارش) + تغییر نام «پنل ادمین» به «پنل گزارش» + حذف متن ثابت «۴ مدل
 // هوش مصنوعی آماده تحلیل» از بالای صفحه (بی‌ربط به بخش دانلود گزارش بود)
-const FRONTEND_VERSION = 'V.2.10.98'
+const FRONTEND_VERSION = 'V.2.42.1'
 
 // اطلاعات نمایشی هر مدل (اسم، نام ارائه‌دهنده، رنگ) — چون بک‌اند فقط کلید
 // فنی مثل "github" یا "groq" برمی‌گردونه
@@ -181,6 +181,9 @@ function ModelCard({ model }) {
 
 export default function App() {
   const [mode, setMode] = useState('text')
+  const [toolsOpen, setToolsOpen] = useState(() => {
+    try { return localStorage.getItem('sd_tools_open') === '1' } catch (_) { return false }
+  })
   const [signalText, setSignalText] = useState('')
   const [imageFile, setImageFile] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
@@ -328,9 +331,6 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <div className="topbar-left">
-          <SessionClock />
-        </div>
         <div className="brand">
           <span className="brand-mark">◈</span>
           <span className="brand-name">SignalDesk</span>
@@ -394,11 +394,25 @@ export default function App() {
       <main className="main">
         {/* معامله واقعی → واچ‌لیست → پوزیشن‌های باز دمو */}
         <RealTradePanel />
+        <OpenPositionsPanel />
+
+        {/* V.2.42.1 — ابزارهای کم‌استفاده جمع‌شونده‌اند (بچه‌ها mount می‌مانند ⇒ polling مثل قبل) */}
+        <details
+          className="sd-tools"
+          open={toolsOpen}
+          onToggle={(e) => {
+            const v = e.currentTarget.open
+            setToolsOpen(v)
+            try { localStorage.setItem('sd_tools_open', v ? '1' : '0') } catch (_) {}
+          }}
+        >
+          <summary>ابزارهای دیگر: ساعت بازارها، واچ‌لیست، تحلیل دستی سیگنال</summary>
+          <div className="sd-tools-body">
+        <SessionClock />
         <AutoSignalList
           onFullAnalyze={handleAutoAnalyze}
           isAnalyzing={status === 'analyzing'}
         />
-        <OpenPositionsPanel />
 
         <section className="intake">
           <h1 className="intake-title">سیگنال رو بذار روی میز</h1>
@@ -478,6 +492,8 @@ export default function App() {
 
           {errorMsg && <p className="error-note">{errorMsg}</p>}
         </section>
+          </div>
+        </details>
 
         {status === 'analyzing' && (
           <div className="analyzing-banner">
@@ -532,39 +548,6 @@ export default function App() {
 
       <footer className="footer">
         هیچ خروجی این پلتفرم توصیه مالی نیست — تصمیم ورود همیشه با خودته.
-        <span className="footer-divider"> · </span>
-        <a
-          href="#admin"
-          className="footer-admin-link"
-          onClick={(e) => {
-            e.preventDefault()
-            window.location.hash = 'admin'
-            window.location.reload()
-          }}
-        >
-          پنل گزارش
-        </a>
-        <span className="footer-divider"> · </span>
-        <a
-          href="#settings"
-          className="footer-admin-link"
-          onClick={(e) => {
-            e.preventDefault()
-            window.location.hash = 'settings'
-            window.location.reload()
-          }}
-        >
-          تنظیمات
-        </a>
-        <span className="footer-divider"> · </span>
-        <button
-          type="button"
-          className="footer-admin-link footer-download-btn"
-          onClick={handleDownloadReport}
-          disabled={reportDownloading}
-        >
-          {reportDownloading ? 'در حال دانلود…' : 'دانلود گزارش'}
-        </button>
       </footer>
     </div>
   )

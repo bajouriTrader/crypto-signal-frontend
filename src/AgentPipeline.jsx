@@ -35,6 +35,42 @@ function scanText(r) {
   return ''
 }
 
+// V.2.42.1 — دلیل خروج به فارسی ساده؛ ناشناخته ⇒ «بسته شد» + کد خام کوچک
+const EXIT_FA = {
+  exchange_take_profit: 'حد سود', tp: 'حد سود', gh_roi: 'حد سود', range_small_tp: 'حد سود', fallback_profit_close: 'حد سود',
+  exchange_stop_loss: 'حد ضرر', sl: 'حد ضرر', regime_tightened_sl: 'حد ضرر',
+  breakeven_sl: 'خروج سربه‌سر', breakeven_exit: 'خروج سربه‌سر',
+  profit_floor_sl: 'قفل سود', range_profit_floor: 'قفل سود', profit_lock: 'قفل سود', profit_lock_regime: 'قفل سود',
+  float_profit_slot: 'قفل سود',
+  rs_trail_stop: 'حد ضرر متحرک', rs_trail_close: 'حد ضرر متحرک', gh_trail_close: 'حد ضرر متحرک',
+  trend_atr_trail_exit: 'حد ضرر متحرک', trail_sl: 'حد ضرر متحرک',
+  time_stop: 'پایان زمان نگهداری', timeout: 'پایان زمان نگهداری', timeout_extended: 'پایان زمان نگهداری',
+  max_hold_force: 'پایان زمان نگهداری', max_hold_return_flat: 'پایان زمان نگهداری',
+  gh_exit_signal: 'سیگنال خروج', tsmom_trend_exit: 'سیگنال خروج',
+  gh_btc_exit: 'خروج به‌خاطر بیت‌کوین',
+  regime_soft_exit: 'تغییر وضعیت بازار', regime_adverse_loss_exit: 'تغییر وضعیت بازار',
+  stale_profit_exit: 'معاملهٔ بی‌حرکت', stale_neutral_exit: 'معاملهٔ بی‌حرکت', stale_flat_exit: 'معاملهٔ بی‌حرکت',
+  range_invalidated: 'شرایط ورود از بین رفت', range_fail_exit: 'شرایط ورود از بین رفت',
+  emergency_loss_cap: 'توقف اضطراری ضرر',
+  force_close_no_sl: 'بستن ایمنی (بدون حد ضرر روی صرافی)', no_exchange_sl: 'بستن ایمنی (بدون حد ضرر روی صرافی)',
+  sl_breach_no_exchange_sl: 'بستن ایمنی (بدون حد ضرر روی صرافی)',
+  gh_invalid_long: 'ورود نامعتبر، بسته شد', gh_invalid_short: 'ورود نامعتبر، بسته شد', fill_invalidated_trade: 'ورود نامعتبر، بسته شد',
+  undersized_margin: 'حجم کمتر از حداقل',
+  manual_close: 'بستن دستی', manual_ui: 'بستن دستی', manual_or_external_close: 'بستن دستی / خارج از ربات',
+  exchange: 'بسته‌شده در صرافی', external_or_unknown: 'بسته‌شده در صرافی', bot_close_unspecified: 'بسته‌شده در صرافی',
+  unknown: 'بسته‌شده در صرافی',
+}
+
+export function exitLabel(code) {
+  let c = String(code ?? '').trim()
+  if (!c) return { text: 'بسته‌شده در صرافی', raw: null }
+  const approx = c.endsWith('_approx')   // از روی سود/زیان حدس زده شده
+  if (approx) c = c.slice(0, -7)
+  const fa = EXIT_FA[c] || (c.endsWith('_time_stop') ? 'پایان زمان نگهداری' : null)
+  if (!fa) return { text: 'بسته شد', raw: String(code) }
+  return { text: approx ? `احتمالاً ${fa}` : fa, raw: null }
+}
+
 export function buildAgents(s) {
   if (!s || typeof s !== 'object') return []
   const now = num(s.server_time) ?? Date.now() / 1000
@@ -139,7 +175,7 @@ export function buildAgents(s) {
     const rc = arr(s.recent_closed)[0]
     const has = !!(it || rc)
     const lines = []
-    if (it) lines.push(`آخرین: ${it.symbol ?? '—'} ${it.direction ?? ''} ${signed(it.pnl_usdt)} · ${it.exit_reason ?? '—'}`)
+    if (it) lines.push(`آخرین: ${it.symbol ?? '—'} ${it.direction ?? ''} ${signed(it.pnl_usdt)} · ${exitLabel(it.exit_reason).text}`)
     else if (rc) lines.push(`آخرین: ${rc.symbol ?? '—'} ${rc.direction ?? ''} ${signed(rc.approx_pnl)}`)
     if (lr.fees_usdt != null) lines.push(`کارمزد ${lr.count ?? '—'} معاملهٔ اخیر: ${usd(lr.fees_usdt)}`)
     out.push({
